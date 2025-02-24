@@ -1,41 +1,194 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ================================
+# Python Specific
+# ================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg
+*.manifest
+*.spec
+.python-version
+.pytest_cache/
+.coverage
+htmlcov/
+.coverage.*
+.cache
+*.mo
+*.pot
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# ================================
+# Virtual Environments
+# ================================
+# Common virtual environment names
+auticare/
+venv/
+ENV/
+env/
+.venv/
+venv*/
+env*/
+.venv*/
+bin/
+include/
+lib/
+lib64/
+pyvenv.cfg
+pip-selfcheck.json
 
-# testing
-/coverage
+# ================================
+# Environment Files
+# ================================
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.*
+!.env.example  # Keep example files
 
-# next.js
-/.next/
-/out/
+# ================================
+# IDE & Editor Settings
+# ================================
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 
-# production
-/build
+# PyCharm/IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
 
-# misc
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*.un~
+
+# ================================
+# OS Generated Files
+# ================================
 .DS_Store
-*.pem
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+# ================================
+# Testing & Debugging
+# ================================
+test.db
+*.log
+logs/
+*.sage.py
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
-# env files (can opt-in for committing if needed)
-.env*
+# ================================
+# Database Files
+# ================================
+*.db
+*.sqlite
+*.sql
+*.dump
+*.rdb
 
-# vercel
-.vercel
+# ================================
+# Build & Package Files
+# ================================
+*.whl
+*.tar.gz
+*.exe
+*.deb
+*.rpm
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# ================================
+# Jupyter Notebook
+# ================================
+.ipynb_checkpoints
+
+# ================================
+# Dependency Directories
+# ================================
+node_modules/
+bower_components/
+jspm_packages/
+
+# ================================
+# Local Development
+# ================================
+.local/
+.terraform/
+.ropeproject
+
+# ================================
+# Documentation
+# ================================
+docs/_build/
+_site/
+
+# ================================
+# Profiling
+# ================================
+.profile
+.stats
+
+# ================================
+# Docker
+# ================================
+docker-compose.override.yml
+.dockerignore
+docker-data/
+
+# ================================
+# Misc
+# ================================
+*.bak
+*.tmp
+*.temp
+*~
+\#*\#
+.#*
+.*.sw[a-z]
+*.orig
+*.rej
+.sass-cache/
+dump.rdb
+.secret
+.vagrant/
+.wercker/
+*.komodoproject
+.ci/
+.airflow/
+.cache/
+.quilt/
+.pytest/
+.tox/
+.nox/
+.mypy_cache/

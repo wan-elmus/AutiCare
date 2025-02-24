@@ -1,0 +1,16 @@
+fastapi 
+uvicorn 
+pydantic 
+numpy 
+scikit-learn 
+pandas
+asyncpg 
+sqlalchemy 
+psycopg2 
+alembic 
+websockets 
+apscheduler 
+python-dotenv
+python-jose[cryptography] 
+passlib 
+bcrypt
