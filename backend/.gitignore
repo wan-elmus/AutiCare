@@ -36,6 +36,7 @@ htmlcov/
 # ================================
 # Common virtual environment names
 auticare/
+versions/
 venv/
 ENV/
 env/

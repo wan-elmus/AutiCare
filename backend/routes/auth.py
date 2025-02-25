@@ -19,9 +19,12 @@ from database.db import SessionLocal, get_db
 from database.models import User
 from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from pydantic import BaseModel, EmailStr
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 class UserCreate(BaseModel):
     first_name: str
@@ -29,6 +32,10 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     confirm_password: str
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -60,10 +67,6 @@ async def signup(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     db.add(new_user)
     await db.commit()
     return {"message": "User registered successfully"}
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
 
 @router.post("/login")
 async def login(user_data: LoginRequest, db: AsyncSession = Depends(get_db)):
