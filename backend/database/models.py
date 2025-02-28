@@ -22,6 +22,12 @@ class User(Base):
     last_name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    child_name = Column(String)
+    child_age = Column(Integer)
+    child_bio = Column(String)
+    child_avatar = Column(String)
 
     predictions = relationship("Prediction", back_populates="user")
 
@@ -61,3 +67,4 @@ class Prediction(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     user = relationship("User", back_populates="predictions")
+    

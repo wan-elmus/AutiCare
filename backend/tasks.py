@@ -25,7 +25,6 @@ import asyncio
 import time
 from typing import List
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("stress_model")
 
@@ -52,7 +51,7 @@ async def process_data_for_user(user_id: int, db: AsyncSession):
         data_points = result.all()
         
         if not data_points:
-            logger.debug(f"No data for user {user_id}")
+            logger.debug(f"No sensor data for user {user_id}")
             return
 
         # Feature computation
@@ -77,8 +76,8 @@ async def process_data_for_user(user_id: int, db: AsyncSession):
         prediction = Prediction(
             user_id=user_id,
             stress_level=stress_level,
-            inference_time=inference_time,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            inference_time=inference_time,       
         )
         db.add(prediction)
         
@@ -102,17 +101,25 @@ async def process_data_for_user(user_id: int, db: AsyncSession):
         await db.rollback()
 
 async def process_users_batch(user_ids: List[int]):
-    """Process batch of users with shared session"""
-    async with get_db() as db:
-        tasks = [process_data_for_user(uid, db) for uid in user_ids]
-        await asyncio.gather(*tasks)
+    """Process batch of users concurrently, each with its own DB session (during shared session)"""
+    async def process_single(uid: int):
+        db = await anext(get_db())
+        try:
+            await process_data_for_user(uid, db)
+        finally:
+            await db.close()
+    tasks = [process_single(uid) for uid in user_ids]
+    await asyncio.gather(*tasks)
 
 async def process_all_users():
     """Process all users in batches"""
     try:
-        async with get_db() as db:
+        db = await anext(get_db())
+        try:
             result = await db.execute(select(User.id))
             user_ids = result.scalars().all()
+        finally:
+            await db.close()
             
         # Process in batches of 50 users
         batch_size = 50
@@ -125,7 +132,7 @@ async def process_all_users():
         logger.error(f"Error processing users: {str(e)}")
 
 def scheduler_startup():
-    """Initialize and configure the scheduler"""
+    """Initialize and configure the scheduler for processing users every 5 minutes"""
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         process_all_users,

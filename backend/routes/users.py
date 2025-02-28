@@ -14,7 +14,7 @@ from config import SECRET_KEY, ALGORITHM
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 class UserCreate(BaseModel):
     first_name: str
@@ -27,6 +27,12 @@ class UserUpdate(BaseModel):
     last_name: str = None
     email: str = None
     password: str = None
+    child_name: str = None
+    child_age: int = None
+    child_bio: str = None
+    child_avatar: str = None
+    
+
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
     try:
@@ -68,7 +74,10 @@ async def get_current_user_details(current_user: User = Depends(get_current_user
     }
 
 @router.put("/users/me")
-async def update_user(user_data: UserUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_user(
+    user_data: UserUpdate, 
+    current_user: User = Depends(get_current_user), 
+    db: AsyncSession = Depends(get_db)):
     if user_data.email:
         existing_user = await db.execute(select(User).where(User.email == user_data.email, User.id != current_user.id))
         if existing_user.scalar():
@@ -76,7 +85,7 @@ async def update_user(user_data: UserUpdate, current_user: User = Depends(get_cu
     
     update_data = user_data.dict(exclude_unset=True)
     if "password" in update_data:
-        update_data["hashed_password"] = pwd_context.hash(update_data.pop("password"))
+        current_user.hashed_password = pwd_context.hash(update_data.pop("password"))
     
     for key, value in update_data.items():
         setattr(current_user, key, value)

@@ -10,6 +10,8 @@ Verifies hashed passwords.
 Returns a valid JWT token on login.
 '''
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Response
+from fastapi.responses import JSONResponse
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
@@ -24,7 +26,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 class UserCreate(BaseModel):
     first_name: str
@@ -49,7 +51,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-@router.post("/signup")
+@router.post("/auth/signup")
 async def signup(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     if user_data.password != user_data.confirm_password:
         raise HTTPException(status_code=400, detail="Passwords do not match")
@@ -68,13 +70,39 @@ async def signup(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     return {"message": "User registered successfully"}
 
-@router.post("/login")
-async def login(user_data: LoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == user_data.email))
-    user = result.scalar()
+@router.post("/auth/login")
+async def login(
+    user_data: LoginRequest, 
+    db: AsyncSession = Depends(get_db), 
+    response: Response = None
+    ):
+    result = await db.execute(select(User).where(User.email == user_data.email)).first()
+    user = result[0] if result else None
 
     if not user or not pwd_context.verify(user_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token({"sub": user.email})
-    return {"access_token": token, "token_type": "bearer"}
+    
+    response =JSONResponse(
+        content={"message": "Login successful"},
+        status_code=200
+    )
+    
+    response.set_cookie(
+        key="token",
+        value=token,max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        # """after hosting""",
+        # secure=True,
+        # samesite="strict",
+        # samesite="Lax",
+        # """Developing locally""",
+        domain="localhost",
+        secure=False,
+        samesite="lax",
+        path="/",
+    )
+    print(token)
+    
+    return {"message": "Login successful", "access_token": token, "token_type": "bearer"}

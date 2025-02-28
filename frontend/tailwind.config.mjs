@@ -8,6 +8,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        darkMode: 'class',
         background: "var(--background)",
         foreground: "var(--foreground)",
       },

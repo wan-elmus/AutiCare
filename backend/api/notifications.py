@@ -28,34 +28,49 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
 @router.get("/notifications")
 async def get_notifications(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     try:
-        # Fetch predictions from the last 30 minutes, for example
-        thirty_minutes_ago = datetime.utcnow() - timedelta(minutes=30)
+        # Fetch predictions from the last 30 minutes for this user
+        five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
         result = await db.execute(
-            select(Prediction).where(Prediction.timestamp >= thirty_minutes_ago, Prediction.user_id == user.id)
+            select(Prediction)
+            .where(Prediction.timestamp >= five_minutes_ago, Prediction.user_id == user.id)
             .order_by(Prediction.timestamp.desc())
         )
         predictions = result.scalars().all()
 
-        # Create notifications from predictions (this is just one example approach)
         notifications = []
         for pred in predictions:
-            if pred.stress_level > 80:
+            # Assuming pred.stress_level is an integer between 0 and 3
+            if pred.stress_level == 0:
+                notifications.append({
+                    "id": pred.id,
+                    "level": "normal",
+                    "message": f"Normal: Stress level at {pred.stress_level}",
+                    "recommendation": "No action needed; continue with regular activities and monitor trends.",
+                    "timestamp": pred.timestamp.isoformat()
+                })
+            elif pred.stress_level in [1, 2]:
+                notifications.append({
+                    "id": pred.id,
+                    "level": "slight",
+                    "message": f"Slight Stress Detected: Stress level at {pred.stress_level}",
+                    "recommendation": (
+                        "Encourage calm activities such as listening to soft music or playing with sensory toys. "
+                        "Suggest a short break, deep breathing, or a change of environment. Monitor for any escalation."
+                    ),
+                    "timestamp": pred.timestamp.isoformat()
+                })
+            elif pred.stress_level == 3:
                 notifications.append({
                     "id": pred.id,
                     "level": "high",
                     "message": f"High Stress Detected: Stress level at {pred.stress_level}",
-                    "recommendation": "Consider deep breathing exercises or a short break.",
-                    "timestamp": pred.timestamp
+                    "recommendation": (
+                        "Notify the caregiver immediately and move the child to a safe, quiet space. "
+                        "Use de-escalation techniques (e.g., speaking softly, providing comforting items). "
+                        "If distress persists, seek medical attention or contact the child's therapist."
+                    ),
+                    "timestamp": pred.timestamp.isoformat()
                 })
-            elif pred.stress_level > 50:
-                notifications.append({
-                    "id": pred.id,
-                    "level": "moderate",
-                    "message": f"Moderate Stress Warning: Stress level at {pred.stress_level}",
-                    "recommendation": "Maybe try a calming activity or a short walk.",
-                    "timestamp": pred.timestamp
-                })
-
         return {"notifications": notifications}
     except Exception as e:
         await db.rollback()
