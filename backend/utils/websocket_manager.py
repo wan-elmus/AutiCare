@@ -7,80 +7,116 @@ WebSockets require authentication using JWT tokens.
 Ensures only logged-in users receive stress predictions.
 '''
 import logging
-from fastapi import WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import WebSocket, WebSocketDisconnect, status
 from jose import jwt, JWTError
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User
 from database.db import get_db
 from config import SECRET_KEY, ALGORITHM
-from typing import Dict
+from typing import Dict, Optional
 
+# Configure logging once
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("websocket_manager")
 
 class WebSocketManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
+        self.user_map: Dict[str, str] = {}  # user_id -> email
 
-    async def connect(self, websocket: WebSocket, token: str, db: AsyncSession):
-        """
-        Authenticate users via JWT and add them to active WebSocket connections.
-        """
+    async def authenticate_user(self, token: str, db: AsyncSession) -> Optional[User]:
+        """Validate JWT and return authenticated user"""
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            email = payload.get("sub")
+            email: str = payload.get("sub")
             if not email:
-                raise HTTPException(status_code=401, detail="Invalid token")
-
+                logger.warning("Missing email in JWT token")
+                return None
+                
             result = await db.execute(select(User).where(User.email == email))
-            user = result.scalar()
+            return result.scalar_one_or_none()
+            
+        except JWTError as e:
+            logger.error(f"JWT validation failed: {str(e)}")
+            return None
 
+    async def connect(self, websocket: WebSocket, token: str, db: AsyncSession):
+        """Authenticate and register WebSocket connection"""
+        try:
+            user = await self.authenticate_user(token, db)
             if not user:
-                raise HTTPException(status_code=401, detail="User not found")
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
 
-            # Accept WebSocket connection and store it
+            # Check for existing connection
+            if user.email in self.active_connections:
+                logger.warning(f"Duplicate connection for {user.email}")
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+
             await websocket.accept()
-            self.active_connections[email] = websocket
-            logger.info(f"User {email} connected. Active connections: {len(self.active_connections)}")
+            self.active_connections[user.email] = websocket
+            self.user_map[str(user.id)] = user.email
+            logger.info(f"User {user.email} connected. Active: {len(self.active_connections)}")
 
-        except JWTError:
-            raise HTTPException(status_code=401, detail="Invalid token")
         except Exception as e:
-            logger.error(f"Error authenticating WebSocket connection: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            logger.error(f"Connection error: {str(e)}")
+            await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
 
-    def disconnect(self, websocket: WebSocket):
-        """
-        Remove disconnected WebSocket clients.
-        """
-        email_to_remove = None
-        for email, conn in self.active_connections.items():
-            if conn == websocket:
-                email_to_remove = email
-                break
+    async def disconnect(self, email: str):
+        """Cleanup disconnected clients"""
+        websocket = self.active_connections.pop(email, None)
+        if websocket:
+            try:
+                await websocket.close()
+            except Exception as e:
+                logger.warning(f"Error closing connection for {email}: {str(e)}")
 
-        if email_to_remove:
-            del self.active_connections[email_to_remove]
-            logger.info(f"User {email_to_remove} disconnected. Active connections: {len(self.active_connections)}")
+        user_id = next((uid for uid, em in self.user_map.items() if em == email), None)
+        if user_id:
+            del self.user_map[user_id]
+        
+        logger.info(f"User {email} disconnected. Active: {len(self.active_connections)}")
+
+    async def broadcast_user(self, user_id: str, message: str):
+        """Send message to specific user"""
+        email = self.user_map.get(user_id)
+        
+        if not email:
+            logger.warning(f"User ID {user_id} not found in user_map")
+            return
+        
+        websocket = self.active_connections.get(email)
+        if not websocket:
+            logger.warning(f"User {email} is not connected. Skipping message.")
+            return
+        
+        try:
+            await websocket.send_text(message)
+            logger.info(f"Sent message to {email}: {message}")
+        except WebSocketDisconnect:
+            logger.info(f"User {email} disconnected during message send")
+            await self.disconnect(email)
+        except Exception as e:
+            logger.error(f"Failed to send message to {email}: {str(e)}")
+            await self.disconnect(email)
 
     async def broadcast(self, message: str):
-        """
-        Send a message to all active WebSocket clients.
-        """
-        disconnected_clients = []
-        for email, connection in self.active_connections.items():
+        """Broadcast to all connected users"""
+        disconnected = []
+        for email, ws in self.active_connections.items():
             try:
-                await connection.send_text(message)
+                await ws.send_text(message)
+            except WebSocketDisconnect:
+                logger.info(f"Client {email} disconnected during broadcast")
+                disconnected.append(email)
             except Exception as e:
-                logger.error(f"Error sending message to {email}: {e}")
-                disconnected_clients.append(email)
+                logger.error(f"Broadcast error to {email}: {str(e)}")
+                disconnected.append(email)
 
-        # Remove disconnected clients
-        for email in disconnected_clients:
-            del self.active_connections[email]
-            logger.info(f"User {email} removed due to connection error. Active connections: {len(self.active_connections)}")
+        for email in disconnected:
+            await self.disconnect(email)
 
-
-# Create a global WebSocket manager instance
+# Singleton instance
 websocket_manager = WebSocketManager()

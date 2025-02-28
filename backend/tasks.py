@@ -11,58 +11,127 @@ Tracks prediction values for debugging.
 Logs database commits to confirm data storage.
 '''
 import logging
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from sqlalchemy import desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from database.db import SessionLocal
+from database.db import get_db
 from utils.model_utils import load_model, predict_stress
 from utils.data_processing import compute_features
-from database.models import SensorData, Prediction
+from database.models import User, SensorData, Prediction, ProcessedData
 from datetime import datetime, timedelta
 from utils.websocket_manager import websocket_manager
 import asyncio
 import time
+from typing import List
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("stress_model")
 
-scheduler = BackgroundScheduler()
+# Load model once at startup
 model = load_model()
 
+async def process_data_for_user(user_id: int, db: AsyncSession):
+    """Process data for a single user with optimized queries"""
+    try:
+        start_time = time.time()
+        five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+        
+        # Optimized query with field selection, ordering, and limit
+        sensor_query = select(
+            SensorData.gsr,
+            SensorData.heart_rate,
+            SensorData.temperature
+        ).where(
+            SensorData.user_id == user_id,
+            SensorData.timestamp >= five_minutes_ago
+        ).order_by(desc(SensorData.timestamp)).limit(100)
 
-async def process_data():
-    async with SessionLocal() as db:
-        now = datetime.utcnow()
-        start_time = now - timedelta(minutes=5)
-
-        # Optimized Query: Select only the necessary fields and limit results
-        result = await db.execute(
-            select(SensorData.value, SensorData.timestamp)
-            .where(SensorData.timestamp >= start_time)
-            .order_by(SensorData.timestamp.desc())
-            .limit(100) 
-        )
+        result = await db.execute(sensor_query)
         data_points = result.all()
+        
+        if not data_points:
+            logger.debug(f"No data for user {user_id}")
+            return
 
-        if len(data_points) >= 60:
-            start_time = time.time() #stsrt measuring inference time
-            features = compute_features(data_points)
-            prediction = predict_stress(model, features)
-            inference_time = time.time() - start_time # compute duration
+        # Feature computation
+        features = compute_features(data_points)
+        processing_time = time.time() - start_time
+
+        # Store processed data
+        processed_data = ProcessedData(
+            user_id=user_id,
+            timestamp=datetime.utcnow(),
+            **features
+        )
+        db.add(processed_data)
+        await db.flush()  # Flush instead of commit to maintain transaction
+
+        # Make prediction
+        prediction_start = time.time()
+        stress_level = predict_stress(model, features)
+        inference_time = time.time() - prediction_start
+
+        # Store prediction
+        prediction = Prediction(
+            user_id=user_id,
+            stress_level=stress_level,
+            inference_time=inference_time,
+            timestamp=datetime.utcnow()
+        )
+        db.add(prediction)
+        
+        await db.commit()
+        
+        logger.info(
+            f"Processed user {user_id} | "
+            f"Processing: {processing_time:.2f}s | "
+            f"Inference: {inference_time:.2f}s | "
+            f"Stress: {stress_level}"
+        )
+
+        # Broadcast prediction
+        await websocket_manager.broadcast_user(
+            user_id=str(user_id),
+            message=f"prediction,{stress_level}"
+        )
+
+    except Exception as e:
+        logger.error(f"Error processing user {user_id}: {str(e)}")
+        await db.rollback()
+
+async def process_users_batch(user_ids: List[int]):
+    """Process batch of users with shared session"""
+    async with get_db() as db:
+        tasks = [process_data_for_user(uid, db) for uid in user_ids]
+        await asyncio.gather(*tasks)
+
+async def process_all_users():
+    """Process all users in batches"""
+    try:
+        async with get_db() as db:
+            result = await db.execute(select(User.id))
+            user_ids = result.scalars().all()
             
-            logger.info(f"Stree prediction:
-                        {prediction}, Inference time:
-                        {inference_time:.3f} seconds")
+        # Process in batches of 50 users
+        batch_size = 50
+        for i in range(0, len(user_ids), batch_size):
+            batch = user_ids[i:i+batch_size]
+            await process_users_batch(batch)
+            logger.info(f"Processed batch {i//batch_size + 1}/{(len(user_ids)//batch_size)+1}")
 
-            new_prediction = Prediction(stress_level=prediction)
-            db.add(new_prediction)
-            await db.commit()
-            logger.info("Prediction saved to database.")
+    except Exception as e:
+        logger.error(f"Error processing users: {str(e)}")
 
-            # Broadcast via WebSocket
-            await websocket_manager.broadcast(f"New Stress Prediction: {prediction}")
-
-            
-# Schedule job correctly without start()
-scheduler.add_job(process_data, "interval", minutes=5)
-
+def scheduler_startup():
+    """Initialize and configure the scheduler"""
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(
+        process_all_users,
+        'interval',
+        minutes=5,
+        max_instances=1  # Prevent overlapping runs
+    )
+    scheduler.start()
+    return scheduler

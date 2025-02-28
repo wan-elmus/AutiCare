@@ -13,3 +13,5 @@ async def get_current_user(websocket: WebSocket):
         return {"user_id": payload.get("sub")}
     except JWTError:
         raise HTTPException(status_code=403, detail="Invalid token")
+    
+    
