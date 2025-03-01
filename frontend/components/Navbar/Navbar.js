@@ -3,10 +3,12 @@
 import { useTheme } from '@/context/ThemeContext'
 import { MoonIcon, SunIcon, UserCircleIcon, Cog6ToothIcon } from '@heroicons/react/24/solid'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function Navbar({ userData }) {
   const { isDark, toggleTheme } = useTheme()
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
+  const router = useRouter()
 
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-sm fixed w-full top-0 z-50">
@@ -25,6 +27,7 @@ export default function Navbar({ userData }) {
             <button
               onClick={toggleTheme}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Toggle dark mode"
             >
               {isDark ? (
                 <SunIcon className="h-6 w-6 text-yellow-400" />
@@ -37,6 +40,7 @@ export default function Navbar({ userData }) {
               <button
                 onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                aria-label="User profile"
               >
                 <UserCircleIcon className="h-6 w-6 text-gray-600 dark:text-gray-300" />
               </button>
@@ -56,33 +60,45 @@ export default function Navbar({ userData }) {
 }
 
 function ProfileDropdown({ userData }) {
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     childName: userData?.child_name || '',
     childAge: userData?.child_age || '',
     childBio: userData?.child_bio || '',
     currentPassword: '',
-    newPassword: ''
-  })
+    newPassword: '',
+  });
 
   const handleUpdate = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     try {
-      const response = await fetch('/api/users/update', {
+      const response = await fetch('http://localhost:8000/users/me', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          // 'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify(formData)
-      })
+        credentials: 'include',
+        body: JSON.stringify(formData),
+      });
       
       if (response.ok) {
-        // Handle success
-        setIsEditing(false)
+        setIsEditing(false);
       }
     } catch (error) {
-      console.error('Update failed:', error)
+      console.error('Update failed:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:8000/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      })
+      router.push('/auth/login')
+    } catch (error) {
+      console.error('Logout failed:', error)
     }
   }
 
@@ -91,37 +107,53 @@ function ProfileDropdown({ userData }) {
       {isEditing ? (
         <form onSubmit={handleUpdate} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium dark:text-gray-200">Child's Name</label>
+            <label className="block text-sm font-medium dark:text-gray-200">
+              Child's Name
+            </label>
             <input
               type="text"
               value={formData.childName}
-              onChange={(e) => setFormData({...formData, childName: e.target.value})}
+              onChange={(e) =>
+                setFormData({ ...formData, childName: e.target.value })
+              }
               className="w-full p-2 mt-1 rounded border dark:bg-gray-700 dark:border-gray-600"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium dark:text-gray-200">Child's Age</label>
+            <label className="block text-sm font-medium dark:text-gray-200">
+              Child's Age
+            </label>
             <input
               type="number"
               value={formData.childAge}
-              onChange={(e) => setFormData({...formData, childAge: e.target.value})}
+              onChange={(e) =>
+                setFormData({ ...formData, childAge: e.target.value })
+              }
               className="w-full p-2 mt-1 rounded border dark:bg-gray-700 dark:border-gray-600"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium dark:text-gray-200">Bio</label>
+            <label className="block text-sm font-medium dark:text-gray-200">
+              Bio
+            </label>
             <textarea
               value={formData.childBio}
-              onChange={(e) => setFormData({...formData, childBio: e.target.value})}
+              onChange={(e) =>
+                setFormData({ ...formData, childBio: e.target.value })
+              }
               className="w-full p-2 mt-1 rounded border dark:bg-gray-700 dark:border-gray-600"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium dark:text-gray-200">New Password</label>
+            <label className="block text-sm font-medium dark:text-gray-200">
+              New Password
+            </label>
             <input
               type="password"
               value={formData.newPassword}
-              onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
+              onChange={(e) =>
+                setFormData({ ...formData, newPassword: e.target.value })
+              }
               className="w-full p-2 mt-1 rounded border dark:bg-gray-700 dark:border-gray-600"
             />
           </div>
@@ -144,9 +176,15 @@ function ProfileDropdown({ userData }) {
       ) : (
         <>
           <div className="space-y-2">
-            <h3 className="font-medium dark:text-gray-200">{userData?.child_name || 'Child Name'}</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Age: {userData?.child_age}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{userData?.child_bio}</p>
+            <h3 className="font-medium dark:text-gray-200">
+              {userData?.child_name || 'Child Name'}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Age: {userData?.child_age}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {userData?.child_bio}
+            </p>
           </div>
           <button
             onClick={() => setIsEditing(true)}
@@ -154,8 +192,14 @@ function ProfileDropdown({ userData }) {
           >
             Edit Profile
           </button>
+          <button
+            onClick={handleLogout}
+            className="w-full py-2 px-4 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Logout
+          </button>
         </>
       )}
     </div>
-  )
+  );
 }

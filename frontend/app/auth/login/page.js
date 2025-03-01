@@ -16,17 +16,25 @@ export default function LoginPage() {
     try {
       const response = await fetch('http://localhost:8000/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          // Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ email, password }),
-        credentials: 'include'
-      })
+        credentials: 'include',
+      });
+      const data = await response.json();
       if (response.ok) {
-        await new Promise(resolve => setTimeout(resolve, 500))
-        router.refresh()
-        window.location.href = '/dashboard'
-        // router.push('/dashboard')
+        if (data.access_token) {
+          // localStorage.setItem('token', data.access_token);
+          await new Promise(resolve => setTimeout(resolve, 500))
+          // router.refresh()
+          router.push('/dashboard')
+        } else {
+          setError('Authentication failed. No token received.');
+        }
       } else {
-        setError('Invalid credentials')
+        setError(data.detail || 'Invalid credentials')
       }
     } catch (err) {
       setError('Connection error')

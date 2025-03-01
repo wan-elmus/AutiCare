@@ -21,13 +21,17 @@ export default function SignupPage() {
     try {
       const response = await fetch('http://localhost:8000/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            // Authorization: `Bearer ${token}`, 
+        },
         body: JSON.stringify({
           first_name: formData.firstName,
           last_name: formData.lastName,
           email: formData.email,
           password: formData.password
-        })
+        }),
+        credentials: 'include',
       })
       
       if (response.ok) {

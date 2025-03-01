@@ -17,7 +17,12 @@ const TrendGraphs = () => {
       const days = timeRange === 'Last Hour' ? 0.0417 : timeRange === 'Today' ? 1 : 7
       const response = await fetch(
         `http://localhost:8000/history/processed_data?days=${days}&user_id=1`, 
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        { 
+          method: 'GET', 
+          headers: { 'Authorization': `Bearer ${token}`, 
+        },
+        credentials: 'include',
+        }
       )
       const processedData = await response.json()
       setData(

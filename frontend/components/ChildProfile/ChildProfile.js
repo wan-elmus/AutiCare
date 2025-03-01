@@ -21,8 +21,10 @@ export default function ChildProfile({ initialData }) {
         const response = await fetch('http://localhost:8000/users/me', {
           method: 'GET',
           headers: {
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',           
+          },
+          credentials: 'include',
         })
         if (!response.ok) throw new Error("Failed to fetch user profile")
         const data = await response.json()
@@ -49,6 +51,7 @@ export default function ChildProfile({ initialData }) {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
+          credentials: 'include',
         })
         if (!response.ok) {
           throw new Error('Failed to fetch notifications')

@@ -1,52 +1,47 @@
 'use client'
-import { useEffect, useState } from 'react'
-import Cookies from 'js-cookie'
-import CircularGauge from '../../utils/CircularGauge'
-import StressIndicator from '../StressIndicator/StressIndicator'
-import { getHeartRateColor, getTemperatureColor, getGSRColor, getStressLevelColor } from '../../utils/colors'
+import { useEffect, useState } from 'react';
+import CircularGauge from '../../utils/CircularGauge';
+import StressIndicator from '../StressIndicator/StressIndicator';
+import { getHeartRateColor, getTemperatureColor, getGSRColor, getStressLevelColor } from '../../utils/colors';
 
 export default function RealTimeMonitoring() {
-  const [heartRate, setHeartRate] = useState(null)
-  const [temperature, setTemperature] = useState(null)
-  const [gsr, setGsr] = useState(null)
-  const [stressLevel, setStressLevel] = useState(null)
+  const [heartRate, setHeartRate] = useState(null);
+  const [temperature, setTemperature] = useState(null);
+  const [gsr, setGsr] = useState(null);
+  const [stressLevel, setStressLevel] = useState(null);
 
   useEffect(() => {
-    // Get the token using js-cookie for robust, client-side cookie management
-    const token = Cookies.get('token')
-    if (!token) {
-      console.error("No token found")
-      return
-    }
-
-    // Establish a WebSocket connection with the backend
-    const ws = new WebSocket(`ws://localhost:8000/ws?token=${encodeURIComponent(token)}`)
+    // Establish WebSocket connection without token in URL
+    const ws = new WebSocket('ws://localhost:8000/ws');
 
     ws.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data)
-        setHeartRate(message.heart_rate)
-        setTemperature(message.temperature)
-        setGsr(message.gsr)
-        setStressLevel(message.stress_level)
+        const message = JSON.parse(event.data);
+        setHeartRate(message.heart_rate);
+        setTemperature(message.temperature);
+        setGsr(message.gsr);
+        setStressLevel(message.stress_level);
       } catch (error) {
-        console.error("Error parsing WebSocket message:", error)
+        console.error("Error parsing WebSocket message:", error);
       }
-    }
+    };
 
     ws.onerror = (error) => {
-      console.error("WebSocket error:", error)
-    }
+      console.error("WebSocket error:", error);
+    };
 
-    // Clean up the connection when the component unmounts
+    ws.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
+
+    // Clean up on unmount
     return () => {
-      ws.close()
-    }
-  }, [])
+      ws.close();
+    };
+  }, []);
 
-  // Show a loading message until all values are available
   if (heartRate === null || temperature === null || gsr === null || stressLevel === null) {
-    return <div className="text-white text-center">Loading...</div>
+    return <div className="text-white text-center">Loading...</div>;
   }
 
   return (
@@ -97,5 +92,5 @@ export default function RealTimeMonitoring() {
         </div>
       </div>
     </div>
-  )
+  );
 }

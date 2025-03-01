@@ -25,7 +25,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["set-cookie"],
+    # expose_headers=["set-cookie"],
 )
 
 # Register API routes
@@ -67,4 +67,4 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     scheduler.shutdown()
-    await websocket_manager.disconnect_all()
+    await websocket_manager.disconnect()

@@ -1,5 +1,5 @@
 '''
-Authenticates users using username & password.
+Authenticates users using email & password.
 Generates a JWT token valid for a set duration.
 Uses bcrypt to securely hash and verify passwords.
 Ensures password confirmation matches.
@@ -14,7 +14,7 @@ from fastapi import Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import jwt
 from passlib.context import CryptContext
 from database.db import SessionLocal, get_db
@@ -47,7 +47,7 @@ def hash_password(password: str) -> str:
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(timezone.utc) + (expires_delta if expires_delta else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -70,39 +70,48 @@ async def signup(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     return {"message": "User registered successfully"}
 
+@router.post("/auth/logout")
+async def logout(response: Response):
+    response = JSONResponse(content={"message": "Logged out successfully"})
+    response.delete_cookie("token")
+    return response
+
 @router.post("/auth/login")
 async def login(
     user_data: LoginRequest, 
     db: AsyncSession = Depends(get_db), 
-    response: Response = None
+    # response: Response = None
     ):
-    result = await db.execute(select(User).where(User.email == user_data.email)).first()
-    user = result[0] if result else None
+    result = await db.execute(select(User).where(User.email == user_data.email))
+    # user = result[0] if result else None
+    user = result.scalar_one_or_none()
+    print(user)
 
     if not user or not pwd_context.verify(user_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_access_token({"sub": user.email})
+    access_token = create_access_token({"sub": user.email})
     
     response =JSONResponse(
-        content={"message": "Login successful"},
+        content={"message": "Login successful", "access_token": access_token, "token_type": "bearer"},
         status_code=200
     )
     
     response.set_cookie(
         key="token",
-        value=token,max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
         # """after hosting""",
         # secure=True,
         # samesite="strict",
         # samesite="Lax",
         # """Developing locally""",
-        domain="localhost",
+        # domain="localhost",
         secure=False,
-        samesite="lax",
+        samesite="Lax",
         path="/",
     )
-    print(token)
+    print(access_token)
     
-    return {"message": "Login successful", "access_token": token, "token_type": "bearer"}
+    return response
