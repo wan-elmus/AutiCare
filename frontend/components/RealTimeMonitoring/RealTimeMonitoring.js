@@ -12,7 +12,11 @@ export default function RealTimeMonitoring() {
 
   useEffect(() => {
     // Establish WebSocket connection without token in URL
-    const ws = new WebSocket('ws://localhost:8000/ws');
+    const ws = new WebSocket('ws://localhost:8000/ws/predictions');
+
+    ws.onopen = () => {
+      console.log("WebSocket connection established")
+    }
 
     ws.onmessage = (event) => {
       try {
@@ -27,11 +31,11 @@ export default function RealTimeMonitoring() {
     };
 
     ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
+      console.log("WebSocket error:", error);
     };
 
-    ws.onclose = () => {
-      console.log("WebSocket connection closed");
+    ws.onclose = (event) => {
+      console.log("WebSocket connection closed:", event.code, event.reason);
     };
 
     // Clean up on unmount

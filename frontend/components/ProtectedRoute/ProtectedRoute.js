@@ -1,9 +1,10 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function ProtectedRoute({ children }) {
   const router = useRouter()
+  const [isAuthenticated, setIsAuthenticated] = useState(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -12,20 +13,25 @@ export default function ProtectedRoute({ children }) {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
           },
-        });
-        
+        })
         if (!response.ok) {
-          router.push('/auth/login');
+          console.error(`Auth check failed: ${response.status}`)
+          router.push('/auth/login')
+        } else {
+          setIsAuthenticated(true)
         }
       } catch (error) {
-        router.push('/auth/login');
+        console.error("Error checking auth:", error)
+        router.push('/auth/login')
       }
     }
+    checkAuth()
+  }, [router])
 
-    checkAuth();
-  }, []);
+  if (isAuthenticated === null) {
+    return <div>Loading...</div> 
+  }
 
-  return children;
+  return children
 }

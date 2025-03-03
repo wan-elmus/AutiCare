@@ -1,22 +1,24 @@
 """
 Manages user-related operations, including CRUD for user profiles.
 """
-from fastapi import APIRouter, Depends, HTTPException, Cookie
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.db import get_db
 from database.models import User
+from utils.auth import get_current_user
 from pydantic import BaseModel
 from passlib.context import CryptContext
-from jose import jwt, JWTError, ExpiredSignatureError
-from config import SECRET_KEY, ALGORITHM
 from fastapi.security import OAuth2PasswordBearer
-from datetime import datetime, timedelta
+import logging
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("users")
 
 class UserCreate(BaseModel):
     first_name: str
@@ -34,26 +36,6 @@ class UserUpdate(BaseModel):
     child_bio: str = None
     child_avatar: str = None
 
-async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db)
-):
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_email = payload.get("sub")  # "sub" contains the email
-        if not user_email:
-            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-        result = await db.execute(select(User).where(User.email == user_email))
-        user = result.scalar_one_or_none()  # Use scalar_one_or_none for safer querying
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return user
-    except ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
 
 @router.post("/users")
 async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -72,7 +54,12 @@ async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_db))
     return {"message": "User created successfully", "id": new_user.id}
 
 @router.get("/users/me")
-async def get_current_user_details(current_user: User = Depends(get_current_user)):
+async def get_current_user_details(
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     return {
         "id": current_user.id,
         "first_name": current_user.first_name,
@@ -86,6 +73,9 @@ async def update_user(
     current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     if user_data.email:
         existing_user = await db.execute(select(User).where(User.email == user_data.email, User.id != current_user.id))
         if existing_user.scalar():

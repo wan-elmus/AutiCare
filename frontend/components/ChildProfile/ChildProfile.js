@@ -1,10 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
-import Cookies from 'js-cookie'
+// import Cookies from 'js-cookie'
 import { UserCircleIcon } from '@heroicons/react/24/solid'
 import { X } from 'lucide-react'
 
-// ChildProfile Component
 export default function ChildProfile({ initialData }) {
   const [userProfile, setUserProfile] = useState(initialData || null)
   const [notifications, setNotifications] = useState([])
@@ -12,21 +11,15 @@ export default function ChildProfile({ initialData }) {
   // Fetch the user profile if not provided via initialData
   useEffect(() => {
     async function fetchUserProfile() {
-      try {
-        const token = Cookies.get('token')
-        if (!token) {
-          console.error('No token found')
-          return
-        }
-        const response = await fetch('http://localhost:8000/users/me', {
+        try {
+          const response = await fetch('http://localhost:8000/users/me', {
           method: 'GET',
           headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',           
+            'Content-Type': 'application/json',
           },
-          credentials: 'include',
+          credentials: "include",
         })
-        if (!response.ok) throw new Error("Failed to fetch user profile")
+        if (!response.ok) throw new Error(`Failed to fetch user profile ${response.status}`)
         const data = await response.json()
         setUserProfile(data)
       } catch (error) {
@@ -40,16 +33,10 @@ export default function ChildProfile({ initialData }) {
   useEffect(() => {
     async function fetchNotifications() {
       try {
-        const token = Cookies.get('token')
-        if (!token) {
-          console.error('No token found')
-          return
-        }
         const response = await fetch('http://localhost:8000/api/notifications/', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
           },
           credentials: 'include',
         })
@@ -91,8 +78,7 @@ export default function ChildProfile({ initialData }) {
         <div className="flex justify-between">
           <span className="text-gray-600 dark:text-gray-400">Joined:</span>
           <span className="dark:text-white">
-            {userProfile?.created_at ? new Date(userProfile.created_at).toLocaleDateString() : 'Not specified'
-            }
+            {userProfile?.created_at ? new Date(userProfile.created_at).toLocaleDateString() : 'Not specified'}
           </span>
         </div>
       </div>
@@ -112,8 +98,9 @@ export default function ChildProfile({ initialData }) {
               key={notification.id}
               className={`relative p-4 rounded-lg border ${
                 notification.level === 'high'
-                  ? 'bg-red-200 border-red-600' 
-                  : notification.level === 'slight' ? 'bg-yellow-200 border-yellow-600' 
+                  ? 'bg-red-200 border-red-600'
+                  : notification.level === 'slight'
+                  ? 'bg-yellow-200 border-yellow-600'
                   : 'bg-green-200 border-green-600'
               }`}
             >

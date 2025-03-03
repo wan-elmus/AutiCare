@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import Navbar from "../../components/Navbar/Navbar";
 import Footer from "../../components/Footer/Footer";
 import RealTimeMonitoring from "../../components/RealTimeMonitoring/RealTimeMonitoring";
@@ -8,27 +7,17 @@ import ChildProfile from "../../components/ChildProfile/ChildProfile";
 import ProtectedRoute from "../../components/ProtectedRoute/ProtectedRoute";
 
 export default async function Dashboard() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
-  console.log("Dashboard token check:", token);
-
-  if (!token) {
-    console.log("Redirecting to login...");
-    redirect("/auth/login");
-  }
-
   const res = await fetch("http://localhost:8000/users/me", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
     credentials: "include",
     cache: "no-store",
   });
 
   if (!res.ok) {
-    console.error("Failed to fetch user data");
+    console.log("Failed to fetch user data:", res.status);
     redirect("/auth/login");
   }
 

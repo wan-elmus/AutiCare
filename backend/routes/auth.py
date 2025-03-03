@@ -9,24 +9,26 @@ Allows email-based login.
 Verifies hashed passwords.
 Returns a valid JWT token on login.
 '''
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi import Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 from jose import jwt
 from passlib.context import CryptContext
-from database.db import SessionLocal, get_db
+from database.db import get_db
 from database.models import User
 from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from pydantic import BaseModel, EmailStr
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("auth")
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 class UserCreate(BaseModel):
     first_name: str
@@ -41,9 +43,6 @@ class LoginRequest(BaseModel):
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
-
-# def verify_password(plain_password, hashed_password):
-#     return pwd_context.verify(plain_password, hashed_password)
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -70,20 +69,13 @@ async def signup(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     return {"message": "User registered successfully"}
 
-@router.post("/auth/logout")
-async def logout(response: Response):
-    response = JSONResponse(content={"message": "Logged out successfully"})
-    response.delete_cookie("token")
-    return response
 
 @router.post("/auth/login")
 async def login(
     user_data: LoginRequest, 
-    db: AsyncSession = Depends(get_db), 
-    # response: Response = None
+    db: AsyncSession = Depends(get_db)
     ):
     result = await db.execute(select(User).where(User.email == user_data.email))
-    # user = result[0] if result else None
     user = result.scalar_one_or_none()
     print(user)
 
@@ -102,16 +94,18 @@ async def login(
         value=access_token,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
-        # """after hosting""",
-        # secure=True,
-        # samesite="strict",
-        # samesite="Lax",
-        # """Developing locally""",
-        # domain="localhost",
         secure=False,
         samesite="Lax",
         path="/",
     )
     print(access_token)
     
+    logger.info(f"Set cookie 'token' for {user.email}: {access_token}")
+    return response
+
+@router.post("/auth/logout")
+async def logout():
+    response = JSONResponse(content={"message": "Logged out successfully"})
+    response.delete_cookie("token")
+    logger.info("Deleted cookie 'token'")
     return response
