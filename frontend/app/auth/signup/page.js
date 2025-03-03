@@ -1,145 +1,191 @@
-// app/auth/signup/page.js
 'use client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { UserIcon, LockClosedIcon, IdentificationIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
+import { FaUser, FaEnvelope, FaLock, FaArrowRight } from 'react-icons/fa'
+import { motion } from 'framer-motion'
+import { useTheme } from '@/context/ThemeContext'
 
 export default function SignupPage() {
+  const { isDark } = useTheme()
   const router = useRouter()
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    password: ''
+    password: '',
   })
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  const fadeInVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
+    setError('')
     try {
       const response = await fetch('http://localhost:8000/users', {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            // Authorization: `Bearer ${token}`, 
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           first_name: formData.firstName,
           last_name: formData.lastName,
           email: formData.email,
-          password: formData.password
+          password: formData.password,
         }),
         credentials: 'include',
       })
-      
-      if (response.ok) {
-        router.push('/auth/login')
-      } else {
+      if (!response.ok) {
         const errorData = await response.json()
-        setError(errorData.detail || 'Registration failed')
+        throw new Error(errorData.detail || 'Registration failed')
       }
+      router.push('/auth/login')
     } catch (err) {
-      setError('Connection error')
+      setError(err.message)
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+    <div
+      className={`min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8 ${
+        isDark ? 'bg-gradient-to-br from-gray-900 via-teal-950 to-gray-800' : 'bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100'
+      }`}
+    >
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={fadeInVariants}
+        className={`w-full max-w-md p-6 sm:p-8 rounded-xl shadow-xl ${
+          isDark ? 'bg-gray-800 border-teal-700' : 'bg-teal-50 border-teal-200'
+        } border`}
+      >
         <div className="flex flex-col items-center mb-8">
-          <IdentificationIcon className="h-16 w-16 text-indigo-600 mb-4" />
-          <h1 className="text-3xl font-bold text-gray-800">Create Account</h1>
-          <p className="text-gray-500 mt-2">Start your journey with us</p>
+          <motion.div
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className={`w-16 h-16 rounded-full flex items-center justify-center ${
+              isDark ? 'bg-teal-700' : 'bg-teal-200'
+            } text-3xl font-bold ${isDark ? 'text-teal-200' : 'text-teal-800'} shadow-md mb-4`}
+          >
+            A {/* AutiCare initial */}
+          </motion.div>
+          <h1 className={`text-3xl font-bold ${isDark ? 'text-teal-300' : 'text-teal-800'}`}>Join AutiCare</h1>
+          <p className={`text-sm mt-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
+            Start supporting your child today
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="relative">
+              <FaUser className={`absolute top-3 left-3 h-5 w-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
               <input
                 type="text"
                 value={formData.firstName}
-                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-white placeholder-gray-500 transition-colors duration-200 ease-in-out"
-                placeholder="John"
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                className={`w-full pl-10 p-2 rounded-lg border ${
+                  isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-100 border-teal-300 text-teal-900'
+                } focus:ring-2 focus:ring-teal-400 transition-all`}
+                placeholder="First Name"
                 required
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+            <div className="relative">
+              <FaUser className={`absolute top-3 left-3 h-5 w-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
               <input
                 type="text"
                 value={formData.lastName}
-                onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-white placeholder-gray-400 transition-colors duration-200 ease-in-out"
-                placeholder="Doe"
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                className={`w-full pl-10 p-2 rounded-lg border ${
+                  isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-100 border-teal-300 text-teal-900'
+                } focus:ring-2 focus:ring-teal-400 transition-all`}
+                placeholder="Last Name"
                 required
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <div className="relative">
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-white placeholder-gray-400 transition-colors duration-200 ease-in-out"
-                placeholder="john@example.com"
-                required
-              />
-              <UserIcon className="h-5 w-5 text-gray-400 absolute right-3 top-3.5" />
-            </div>
+          <div className="relative">
+            <FaEnvelope className={`absolute top-3 left-3 h-5 w-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className={`w-full pl-10 p-2 rounded-lg border ${
+                isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-100 border-teal-300 text-teal-900'
+              } focus:ring-2 focus:ring-teal-400 transition-all`}
+              placeholder="Email"
+              required
+            />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <div className="relative">
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-white placeholder-gray-400 transition-colors duration-200 ease-in-out"
-                placeholder="••••••••"
-                required
-              />
-              <LockClosedIcon className="h-5 w-5 text-gray-400 absolute right-3 top-3.5" />
-            </div>
+          <div className="relative">
+            <FaLock className={`absolute top-3 left-3 h-5 w-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className={`w-full pl-10 p-2 rounded-lg border ${
+                isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-100 border-teal-300 text-teal-900'
+              } focus:ring-2 focus:ring-teal-400 transition-all`}
+              placeholder="••••••••"
+              required
+            />
           </div>
 
-          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+          {error && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-red-500 text-sm text-center"
+            >
+              {error}
+            </motion.p>
+          )}
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             type="submit"
             disabled={isLoading}
-            className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+            className={`w-full p-3 rounded-lg flex items-center justify-center gap-2 ${
+              isDark ? 'bg-teal-600 hover:bg-teal-700' : 'bg-teal-500 hover:bg-teal-600'
+            } text-white transition-colors duration-300`}
           >
             {isLoading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                className="h-5 w-5 border-2 border-t-white rounded-full"
+              />
             ) : (
               <>
                 Create Account
-                <ArrowRightIcon className="h-5 w-5" />
+                <FaArrowRight className="h-5 w-5" />
               </>
             )}
-          </button>
+          </motion.button>
         </form>
 
-        <p className="text-center mt-6 text-gray-600">
-          Already have an account?{' '}
-          <button
+        <p className="text-center mt-6 text-sm">
+          <span className={`${isDark ? 'text-teal-400' : 'text-teal-600'}`}>Already with AutiCare?</span>{' '}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
             onClick={() => router.push('/auth/login')}
-            className="text-indigo-600 hover:underline font-medium"
+            className={`inline-block px-2 py-1 rounded-md font-medium ${
+              isDark ? 'bg-teal-700 text-teal-200 hover:bg-teal-600' : 'bg-teal-200 text-teal-800 hover:bg-teal-300'
+            } transition-colors duration-300`}
           >
-            Sign in here
-          </button>
+            Sign In
+          </motion.button>
         </p>
-      </div>
+      </motion.div>
     </div>
   )
 }

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.db import get_db
 from database.models import User
 from routes import auth, history, predict, sensors, users, websocket_routes
+from api import notifications
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from tasks import process_all_users
 from utils.websocket_manager import websocket_manager
@@ -42,7 +43,9 @@ app.include_router(predict.router)
 app.include_router(sensors.router)
 app.include_router(users.router)
 app.include_router(websocket_routes.router)
+app.include_router(notifications.router)
 
+# Middleware to log requests
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     logger.info(f"Request: {request.method} {request.url} Cookies: {request.cookies}")

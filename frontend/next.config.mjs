@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     experimental: {
+      turbo: {
+        optimizeFonts: false,
+      },
         serverActions: {
           allowedOrigins: ['localhost:3000'],
         },

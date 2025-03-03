@@ -1,34 +1,27 @@
+"""
+Manages notification-related operations.
+"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.db import get_db
 from database.models import Prediction, User
 from datetime import datetime, timedelta
-from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
-from config import SECRET_KEY, ALGORITHM
+from utils.auth import get_current_user
+import logging
 
-router = APIRouter()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+router = APIRouter(prefix="/api")
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-        result = await db.execute(select(User).where(User.email == user_id))
-        user = result.scalar()
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return user
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("notifications")
 
 @router.get("/notifications")
-async def get_notifications(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_notifications(
+    user: User = Depends(get_current_user), 
+    db: AsyncSession = Depends(get_db)
+    ):
     try:
-        # Fetch predictions from the last 30 minutes for this user
+        # Fetch predictions from the last 5 minutes for this user
         five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
         result = await db.execute(
             select(Prediction)
@@ -71,7 +64,9 @@ async def get_notifications(user: User = Depends(get_current_user), db: AsyncSes
                     ),
                     "timestamp": pred.timestamp.isoformat()
                 })
+        logger.info(f"Fetched {len(notifications)} notifications for user {user.email}")        
         return {"notifications": notifications}
     except Exception as e:
+        logger.error(f"Error fetching notifications: {str(e)}")
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

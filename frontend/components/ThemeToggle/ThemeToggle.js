@@ -1,21 +1,31 @@
-// components/ThemeToggle.js
 'use client'
 import { useTheme } from '@/context/ThemeContext'
-import { MoonIcon, SunIcon } from '@heroicons/react/24/solid'
+import { FaSun, FaMoon } from 'react-icons/fa' // Modern icons
+import { motion } from 'framer-motion'
 
 export default function ThemeToggle() {
   const { isDark, toggleTheme } = useTheme()
 
+  // Animation variants
+  const buttonVariants = {
+    hover: { scale: 1.1 },
+    tap: { scale: 0.95 },
+  }
+
   return (
-    <button
+    <motion.button
+      variants={buttonVariants}
+      whileHover="hover"
+      whileTap="tap"
       onClick={toggleTheme}
-      className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+      className={`p-2 rounded-full shadow-md transition-colors duration-300 ${isDark ? 'bg-gradient-to-r from-gray-700 to-teal-800' : 'bg-gradient-to-r from-teal-200 to-blue-300'}`}
+      aria-label="Toggle theme"
     >
       {isDark ? (
-        <SunIcon className="h-6 w-6 text-yellow-400" />
+        <FaSun className="h-6 w-6 text-yellow-400" />
       ) : (
-        <MoonIcon className="h-6 w-6 text-gray-600" />
+        <FaMoon className="h-6 w-6 text-teal-600" />
       )}
-    </button>
+    </motion.button>
   )
 }

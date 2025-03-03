@@ -1,23 +1,34 @@
-// context/ThemeContext.js
 'use client'
 import { createContext, useContext, useEffect, useState } from 'react'
 
 const ThemeContext = createContext({
   isDark: false,
-  toggleTheme: () => {} // Add default values
+  toggleTheme: () => {},
 })
 
 export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false) // Track initial load
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
-    const isDarkMode = savedTheme ? 
-      savedTheme === 'dark' : 
-      window.matchMedia('(prefers-color-scheme: dark)').matches
-      
-    setIsDark(isDarkMode)
-    document.documentElement.classList.toggle('dark', isDarkMode)
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const initialDark = savedTheme ? savedTheme === 'dark' : prefersDark
+
+    setIsDark(initialDark)
+    document.documentElement.classList.toggle('dark', initialDark)
+    setIsLoaded(true) // Mark as loaded after setting theme
+
+    // Listen for system theme changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleChange = (e) => {
+      if (!localStorage.getItem('theme')) { // Only update if no user preference
+        setIsDark(e.matches)
+        document.documentElement.classList.toggle('dark', e.matches)
+      }
+    }
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
   }, [])
 
   const toggleTheme = () => {
@@ -25,6 +36,10 @@ export function ThemeProvider({ children }) {
     setIsDark(newIsDark)
     localStorage.setItem('theme', newIsDark ? 'dark' : 'light')
     document.documentElement.classList.toggle('dark', newIsDark)
+  }
+
+  if (!isLoaded) {
+    return null // Prevent flash of unstyled content
   }
 
   return (
