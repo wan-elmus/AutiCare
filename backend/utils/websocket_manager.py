@@ -25,7 +25,7 @@ logger = logging.getLogger("websocket_manager")
 class WebSocketManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
-        self.user_map: Dict[str, str] = {}  # user_id -> email
+        self.user_map: Dict[str, str] = {}
 
     # async def authenticate_user(self, token: str, db: AsyncSession) -> Optional[User]:
     #     """Validate JWT and return authenticated user"""
@@ -54,9 +54,8 @@ class WebSocketManager:
             # user = await self.authenticate_user(token, db)
             if not user:
                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-                return False # Indicate connection rejection
+                return False
 
-            # Check for existing connection
             if user.email in self.active_connections:
                 logger.warning(f"Duplicate connection for {user.email}")
                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -122,7 +121,6 @@ class WebSocketManager:
         """
         while True:
             await asyncio.sleep(interval)
-            # Iterate over a static list of emails to avoid modifying dict during iteration
             for email, websocket in list(self.active_connections.items()):
                 try:
                     if websocket.client_state != WebSocketState.CONNECTED:

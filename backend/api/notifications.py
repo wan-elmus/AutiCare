@@ -21,7 +21,6 @@ async def get_notifications(
     db: AsyncSession = Depends(get_db)
     ):
     try:
-        # Fetch predictions from the last 5 minutes for this user
         five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
         result = await db.execute(
             select(Prediction)
@@ -32,7 +31,6 @@ async def get_notifications(
 
         notifications = []
         for pred in predictions:
-            # Assuming pred.stress_level is an integer between 0 and 3
             if pred.stress_level == 0:
                 notifications.append({
                     "id": pred.id,

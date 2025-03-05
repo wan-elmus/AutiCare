@@ -19,7 +19,6 @@ def predict_stress(features):
     model = load_model()
     scaler = load_scaler()
     
-    # Ensure features are in the correct order
     feature_list = [
         features["gsr_max"],
         features["gsr_min"],
@@ -29,13 +28,11 @@ def predict_stress(features):
         features["temp_avg"]
     ]
     
-    # Normalize the features
     normalized_features = scaler.transform([feature_list])
     prediction = model.predict(normalized_features)[0]
     return prediction
 
 if __name__ == "__main__":
-    # Example usage
     sample_features = {
         "gsr_max": 12.8,
         "gsr_min": 4.9,

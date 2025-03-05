@@ -38,7 +38,7 @@ async def websocket_endpoint(
                 try: 
                     data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
                     logger.info(f"Received from {user.email}: {data}")
-                    await websocket.send_text(f"Echo: {data}")  # Echo for testing
+                    await websocket.send_text(f"Echo: {data}")
                 except asyncio.TimeoutError:
                     await websocket.send_text("Ping")
                     logger.debug(f"Sent ping to {user.email}")   

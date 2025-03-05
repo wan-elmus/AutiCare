@@ -33,7 +33,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
 @router.get("/predict")
 async def get_prediction(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     try:
-        # Get the latest processed data for the user (last 5 minutes)
+        # latest processed data for the user (last 5 minutes)
         five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
         result = await db.execute(
             select(ProcessedData).where(ProcessedData.timestamp >= five_minutes_ago).order_by(ProcessedData.timestamp.desc()).limit(1)
@@ -42,7 +42,7 @@ async def get_prediction(user: User = Depends(get_current_user), db: AsyncSessio
         if not processed_data:
             raise HTTPException(status_code=404, detail="No processed data available for the last 5 minutes")
 
-        # Prepare features for prediction
+        # features for prediction
         features = {
             "gsr_max": processed_data.gsr_max,
             "gsr_min": processed_data.gsr_min,
@@ -52,7 +52,6 @@ async def get_prediction(user: User = Depends(get_current_user), db: AsyncSessio
             "temp_avg": processed_data.temp_avg
         }
 
-        # Load model and predict
         model = load_model()
         stress_level = predict_stress(model, features)
 

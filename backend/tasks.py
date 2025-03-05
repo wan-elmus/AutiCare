@@ -28,7 +28,6 @@ from typing import List
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("stress_model")
 
-# Load model once at startup
 model = load_model()
 
 async def process_data_for_user(user_id: int, db: AsyncSession):
@@ -37,7 +36,6 @@ async def process_data_for_user(user_id: int, db: AsyncSession):
         start_time = time.time()
         five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
         
-        # Optimized query with field selection, ordering, and limit
         sensor_query = select(
             SensorData.gsr,
             SensorData.heart_rate,
@@ -54,25 +52,21 @@ async def process_data_for_user(user_id: int, db: AsyncSession):
             logger.debug(f"No sensor data for user {user_id}")
             return
 
-        # Feature computation
         features = compute_features(data_points)
         processing_time = time.time() - start_time
 
-        # Store processed data
         processed_data = ProcessedData(
             user_id=user_id,
             timestamp=datetime.utcnow(),
             **features
         )
         db.add(processed_data)
-        await db.flush()  # Flush instead of commit to maintain transaction
+        await db.flush()
 
-        # Make prediction
         prediction_start = time.time()
         stress_level = predict_stress(model, features)
         inference_time = time.time() - prediction_start
 
-        # Store prediction
         prediction = Prediction(
             user_id=user_id,
             stress_level=stress_level,
@@ -90,7 +84,6 @@ async def process_data_for_user(user_id: int, db: AsyncSession):
             f"Stress: {stress_level}"
         )
 
-        # Broadcast prediction
         await websocket_manager.broadcast_user(
             user_id=str(user_id),
             message=f"prediction,{stress_level}"
@@ -121,7 +114,6 @@ async def process_all_users():
         finally:
             await db.close()
             
-        # Process in batches of 50 users
         batch_size = 50
         for i in range(0, len(user_ids), batch_size):
             batch = user_ids[i:i+batch_size]
@@ -138,7 +130,7 @@ def scheduler_startup():
         process_all_users,
         'interval',
         minutes=5,
-        max_instances=1  # Prevent overlapping runs
+        max_instances=1
     )
     scheduler.start()
     return scheduler

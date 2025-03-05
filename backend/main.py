@@ -36,7 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register API routes
+# API routes
 app.include_router(auth.router)
 app.include_router(history.router)
 app.include_router(predict.router)
@@ -77,22 +77,18 @@ async def websocket_endpoint(
         while True:
             try:
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
-                # Example: Echo or broadcast stress predictions
-                # Handle incoming messages if needed
                 logger.info(f"Received from {user.email}: {data}")
                 await websocket.send_text(f"Echo: {data}")
             except asyncio.TimeoutError:
-            # Send ping if no message received within timeout
                 await websocket.send_text("Ping")
             except WebSocketDisconnect:
                 raise
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for user: {user.email}")
     finally:
-        # Use email for disconnection
         await websocket_manager.disconnect(user.email)
 
-# Initialize scheduler
+# scheduler
 scheduler = AsyncIOScheduler()
 scheduler.add_job(process_all_users, "interval", minutes=5, max_instances=1)  # Prevent overlapping runs
 

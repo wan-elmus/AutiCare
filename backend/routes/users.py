@@ -91,6 +91,8 @@
 #     await db.commit()
 #     return {"message": "User updated successfully"}
 
+''' without authentication'''
+
 """
 Manages user-related operations, including CRUD for user profiles.
 """
@@ -144,7 +146,6 @@ async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_db))
 
 @router.get("/users/me")
 async def get_current_user_details(db: AsyncSession = Depends(get_db)):
-    # Fetch a default user (e.g., first user in DB) or mock data
     result = await db.execute(select(User).limit(1))
     user = result.scalar_one_or_none()
     if not user:
