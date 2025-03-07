@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useTheme } from '@/context/ThemeContext'
-import { FaHeartbeat } from 'react-icons/fa' // Minimal icon
+import { FaHeartbeat } from 'react-icons/fa'
 import CircularGauge from '../../utils/CircularGauge'
 import StressIndicator from '../StressIndicator/StressIndicator'
 import { getHeartRateColor, getTemperatureColor, getGSRColor, getStressLevelColor } from '../../utils/colors'
@@ -15,7 +15,6 @@ export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
   const [stressLevel, setStressLevel] = useState(null)
   const [alerts, setAlerts] = useState({ heartRate: false, temperature: false, gsr: false })
 
-  // Animation variants
   const fadeInVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
@@ -56,7 +55,7 @@ export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
     )
   }
 
-  // Minimal Card View (for Landing Page)
+  // Card view
   if (!isExpanded) {
     return (
       <motion.div
@@ -84,7 +83,7 @@ export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
     )
   }
 
-  // Full Expanded View (for Sidebar)
+  // Expanded Sidebar
   return (
     <motion.div
       initial="hidden"

@@ -6,7 +6,6 @@ import { useTheme } from '@/context/ThemeContext'
 export default function Footer() {
   const { isDark } = useTheme()
 
-  // Animation variants for fade-in
   const fadeInVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
@@ -22,7 +21,7 @@ export default function Footer() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* About Section */}
+          {/* About */}
           <div className="space-y-4">
             <h3 className={`text-lg font-semibold flex items-center gap-2 ${isDark ? 'text-teal-300' : 'text-teal-800'}`}>
               <HeartIcon className={`h-6 w-6 ${isDark ? 'text-teal-400' : 'text-teal-600'} animate-pulse-slow`} />

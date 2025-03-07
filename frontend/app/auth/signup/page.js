@@ -73,7 +73,7 @@ export default function SignupPage() {
               isDark ? 'bg-teal-700' : 'bg-teal-200'
             } text-3xl font-bold ${isDark ? 'text-teal-200' : 'text-teal-800'} shadow-md mb-4`}
           >
-            A {/* AutiCare initial */}
+            A 
           </motion.div>
           <h1 className={`text-3xl font-bold ${isDark ? 'text-teal-300' : 'text-teal-800'}`}>Join AutiCare</h1>
           <p className={`text-sm mt-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>

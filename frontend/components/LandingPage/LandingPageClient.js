@@ -18,7 +18,7 @@ export default function LandingPageClient({ initialUserProfile }) {
   const [activeComponent, setActiveComponent] = useState(null)
   const [notificationError, setNotificationError] = useState('') // Add error state
 
-  // Fetch user profile if not provided or on refresh
+  // user profile
   useEffect(() => {
     async function fetchUserProfile() {
       try {
@@ -47,7 +47,7 @@ export default function LandingPageClient({ initialUserProfile }) {
           credentials: 'include',
         })
         if (!response.ok) {
-          const errorText = await response.text() // Get error details
+          const errorText = await response.text()
           throw new Error(`Failed to fetch notifications: ${response.status} - ${errorText}`)
         }
         const data = await response.json()
@@ -102,7 +102,6 @@ export default function LandingPageClient({ initialUserProfile }) {
     >
       <Navbar userProfile={userProfile} />
       <div className="flex flex-col lg:flex-row pt-16 px-4 sm:px-6 lg:px-8">
-        {/* Main Content */}
         <main className="flex-1 max-w-4xl mx-auto lg:mr-4">
           <motion.h1
             initial={{ opacity: 0, y: -20 }}

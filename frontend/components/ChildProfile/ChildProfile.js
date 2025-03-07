@@ -11,7 +11,7 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
   const [notifications, setNotifications] = useState([])
   const [isLoading, setIsLoading] = useState(!initialData)
 
-  // Animation variants
+  // Animation
   const fadeInVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
@@ -23,7 +23,7 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
     exit: { opacity: 0, x: 20, transition: { duration: 0.3 } },
   }
 
-  // Fetch user profile if not provided
+  // user profile
   useEffect(() => {
     async function fetchUserProfile() {
       setIsLoading(true)
@@ -45,7 +45,7 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
     if (!userProfile) fetchUserProfile()
   }, [userProfile])
 
-  // Fetch notifications
+  // notifications
   useEffect(() => {
     async function fetchNotifications() {
       try {
@@ -89,7 +89,7 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
     )
   }
 
-  // Minimal Card View (for Landing Page)
+
   if (!isExpanded) {
     return (
       <motion.div
@@ -120,7 +120,7 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
     )
   }
 
-  // Full Expanded View (for Sidebar)
+  
   return (
     <motion.div
       initial="hidden"

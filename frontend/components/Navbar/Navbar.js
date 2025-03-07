@@ -124,7 +124,7 @@ export default function Navbar({ userData }) {
   )
 }
 
-function ProfileDropdown({ userData, setIsProfileOpen, isDark }) {  // Added isDark prop
+function ProfileDropdown({ userData, setIsProfileOpen, isDark }) { 
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     childName: userData?.child_name || '',

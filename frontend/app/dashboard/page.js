@@ -7,7 +7,7 @@ import TrendGraphs from '../../components/TrendGraphs/TrendGraphs'
 import ChildProfile from '../../components/ChildProfile/ChildProfile'
 import { redirect } from 'next/navigation'
 
-// Server component - no 'use client' or getServerSideProps needed
+// Server component
 export default async function Dashboard() {
   let userProfile = null
   try {
@@ -27,7 +27,7 @@ export default async function Dashboard() {
     userProfile = await res.json()
   } catch (error) {
     console.error('Error fetching user profile:', error)
-    redirect('/auth/login') // Redirect to login on failure
+    redirect('/auth/login')
   }
 
   return (

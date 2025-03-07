@@ -33,8 +33,8 @@ export default function LoginPage() {
         const data = await response.json()
         throw new Error(data.detail || 'Invalid credentials')
       }
-      await new Promise((resolve) => setTimeout(resolve, 500)) // Smooth transition
-      router.push('/') // Redirect to LandingPage.js (app/page.js)
+      await new Promise((resolve) => setTimeout(resolve, 500)) // Smooth transiiition
+      router.push('/') // LandingPage.js (app/page.js)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -65,7 +65,7 @@ export default function LoginPage() {
               isDark ? 'bg-teal-700' : 'bg-teal-200'
             } text-3xl font-bold ${isDark ? 'text-teal-200' : 'text-teal-800'} shadow-md mb-4`}
           >
-            A {/* AutiCare initial */}
+            A 
           </motion.div>
           <h1 className={`text-3xl font-bold ${isDark ? 'text-teal-300' : 'text-teal-800'}`}>Care Begins Here</h1>
           <p className={`text-sm mt-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
