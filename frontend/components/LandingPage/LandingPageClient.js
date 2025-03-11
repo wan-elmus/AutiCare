@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '@/context/ThemeContext'
+import { UserContext } from '@/context/UserContext'
 import { FaHeartbeat, FaUserCircle, FaChartLine, FaArrowRight, FaTimes } from 'react-icons/fa'
 import RealTimeMonitoring from '../RealTimeMonitoring/RealTimeMonitoring'
 import ChildProfile from '../ChildProfile/ChildProfile'
@@ -12,30 +13,42 @@ import { AlertCircle } from 'lucide-react'
 
 export default function LandingPageClient({ initialUserProfile }) {
   const { isDark } = useTheme()
+  const { user, setUser } = useContext(UserContext)
   const [userProfile, setUserProfile] = useState(initialUserProfile)
   const [notifications, setNotifications] = useState([])
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeComponent, setActiveComponent] = useState(null)
-  const [notificationError, setNotificationError] = useState('') // Add error state
+  const [notificationError, setNotificationError] = useState('')
+
+  // initial user profile from server-side fetch
+  useEffect(() => {
+    if (initialUserProfile && !user) {
+      setUser(initialUserProfile)
+      setUserProfile(initialUserProfile)
+    }
+  }, [initialUserProfile, user, setUser])
 
   // user profile
   useEffect(() => {
     async function fetchUserProfile() {
-      try {
-        const response = await fetch('http://localhost:8000/users/me', {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        })
+      if (!user){
+        try {
+          const response = await fetch('http://localhost:8000/users/me', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          })
         if (!response.ok) throw new Error(`Failed to fetch user profile: ${response.status}`)
         const data = await response.json()
+        setUser(data)
         setUserProfile(data)
-      } catch (error) {
-        console.error('Error fetching user profile:', error)
+        } catch (error) {
+          console.log('Error fetching user profile:', error)
+        }
       }
     }
-    if (!userProfile) fetchUserProfile()
-  }, [userProfile])
+    fetchUserProfile()
+  }, [user, setUser])
 
   // Fetch notifications
   useEffect(() => {
@@ -46,21 +59,81 @@ export default function LandingPageClient({ initialUserProfile }) {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
         })
-        if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`Failed to fetch notifications: ${response.status} - ${errorText}`)
-        }
+        if (!response.ok) throw new Error(`Failed to fetch notifications: ${response.status}`)
         const data = await response.json()
         setNotifications(data.notifications || [])
         setNotificationError('')
       } catch (error) {
-        console.error('Error fetching notifications:', error.message)
+        console.log('Error fetching notifications:', error.message)
         setNotifications([])
         setNotificationError('Unable to load notifications. Please try again later.')
       }
     }
     fetchNotifications()
   }, [])
+    // WebSocket setup only when user is authenticated
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const setupWebSocket = async () => {
+      await new Promise(resolve => setTimeout(resolve, 500));  // 500ms delay
+      console.log('Cookies after delay:', document.cookie);
+      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      if (!token) {
+        console.error('No token found in cookies');
+      return;
+      }
+      const ws = new WebSocket(`ws://localhost:8000/sensor/ws/sensor/data?token=${encodeURIComponent(token)}`);
+      ws.onopen = () => console.log('WebSocket connection established for notifications');
+      ws.onmessage = (event) => {
+        if (event.data === 'ping') return;
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === 'dismiss_notification') {
+            setNotifications((prev) => prev.filter((n) => n.id !== message.id));
+          } else if (message.type === 'dismiss_all_notifications') {
+          setNotifications([]);
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+      ws.onerror = (error) => console.error('WebSocket error:', error);
+      ws.onclose = () => console.log('WebSocket closed');
+
+      return () => ws.close();
+    };
+    const cleanup = setupWebSocket();
+    return () => cleanup.then(ws => ws?.close());
+  }, [user?.id]);
+
+  const dismissNotification = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/notifications/${id}/dismiss`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Failed to dismiss notification')
+      setNotifications((prev) => prev.filter((n) => n.id !== id))
+    } catch (error) {
+      console.log('Error dismissing notification:', error)
+    }
+  }
+
+  const dismissAllNotifications = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/notifications/dismiss-all', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Failed to dismiss all notifications')
+      setNotifications([])
+    } catch (error) {
+      console.error('Error dismissing all notifications:', error)
+    }
+  }
 
   const cardVariants = {
     hidden: { opacity: 0, scale: 0.9 },
@@ -71,6 +144,12 @@ export default function LandingPageClient({ initialUserProfile }) {
     hidden: { x: '-100%' },
     visible: { x: 0, transition: { duration: 0.4, ease: 'easeInOut' } },
     exit: { x: '-100%', transition: { duration: 0.4, ease: 'easeInOut' } },
+  }
+
+  const notificationVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.4 } },
+    exit: { opacity: 0, x: 20, transition: { duration: 0.3 } },
   }
 
   const cards = [
@@ -155,9 +234,23 @@ export default function LandingPageClient({ initialUserProfile }) {
               isDark ? 'bg-gray-800 border-teal-700' : 'bg-teal-50 border-teal-200'
             } border h-[calc(100vh-4rem)] overflow-y-auto`}
           >
+            <div className="flex justify-between items-center mb-4">
             <h2 className={`text-2xl font-semibold mb-4 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
               Notifications
             </h2>
+            {notifications.length > 0 && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={dismissAllNotifications}
+                  className={`text-sm px-3 py-1 rounded-md ${
+                    isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'
+                  }`}
+                >
+                  Dismiss All
+                </motion.button>
+              )}
+            </div>
             {notificationError && (
               <p className={`text-sm text-red-500 mb-4`}>{notificationError}</p>
             )}
@@ -167,11 +260,12 @@ export default function LandingPageClient({ initialUserProfile }) {
                   notifications.map((notification) => (
                     <motion.div
                       key={notification.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
+                      variants={notificationVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
                       transition={{ duration: 0.4 }}
-                      className={`p-4 rounded-lg shadow-md border ${
+                      className={`relative p-4 rounded-lg shadow-md border ${
                         notification.level === 'high'
                           ? 'bg-gradient-to-r from-red-300 to-red-400 border-red-600'
                           : notification.level === 'slight'
@@ -179,6 +273,14 @@ export default function LandingPageClient({ initialUserProfile }) {
                           : 'bg-gradient-to-r from-green-200 to-green-300 border-green-600'
                       }`}
                     >
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => dismissNotification(notification.id)}
+                        className="absolute top-2 right-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                      >
+                        <X className="h-4 w-4" />
+                      </motion.button>
                       <div className="flex items-start gap-3">
                         <AlertCircle
                           className={`h-5 w-5 ${

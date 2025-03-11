@@ -9,26 +9,9 @@ from database.db import get_db
 from database.models import ProcessedData, Prediction, User
 from utils.model_utils import load_model, predict_stress
 from datetime import datetime, timedelta
-from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
-from config import SECRET_KEY, ALGORITHM
+from utils.auth import get_current_user
 
 router = APIRouter()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
-
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-        result = await db.execute(select(User).where(User.email == user_id))
-        user = result.scalar()
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return user
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
 
 @router.get("/predict")
 async def get_prediction(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):

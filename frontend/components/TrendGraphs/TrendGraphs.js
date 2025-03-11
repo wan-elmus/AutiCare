@@ -1,12 +1,14 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { motion } from 'framer-motion'
 import { useTheme } from '@/context/ThemeContext'
-import { FaChartLine, FaArrowRight } from 'react-icons/fa' // Modern icons for card and expand
+import { FaChartLine, FaArrowRight } from 'react-icons/fa'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Brush } from 'recharts'
+import { UserContext } from '@/context/UserContext'
 
 export default function TrendGraphs({ isExpanded = false, onExpand }) {
   const { isDark } = useTheme()
+  const { user, setUser } = useContext(UserContext)
   const [data, setData] = useState([])
   const [timeRange, setTimeRange] = useState('Today')
   const [isLoading, setIsLoading] = useState(true)
@@ -17,13 +19,35 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
   }
 
+   // Fetch user details on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchUserDetails = async () => {
+      if (!user) {
+        try {
+          const response = await fetch('http://localhost:8000/users/me', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          })
+          if (!response.ok) throw new Error('Failed to fetch user details')
+          const userData = await response.json()
+          setUser(userData)
+        } catch (error) {
+          console.log('Error fetching user details:', error)
+        }
+      }
+    }
+    fetchUserDetails()
+  }, [user, setUser])
+
+  // historical data
+  useEffect(() => {
+    const fetchHistoricalData = async () => {
       setIsLoading(true)
       try {
         const days = timeRange === 'Last Hour' ? 0.0417 : timeRange === 'Today' ? 1 : 7
         const response = await fetch(
-          `http://localhost:8000/history/processed_data?days=${days}&user_id=1`,
+          `http://localhost:8000/history/processed_data?days=${days}&user_id=${user.id}`,
           {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -31,24 +55,59 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
           }
         )
         if (!response.ok) throw new Error(`Failed to fetch data: ${response.status}`)
-        const processedData = await response.json()
+        const historicalData = await response.json()
         setData(
-          processedData.map((d) => ({
+          historicalData.map((d) => ({
             time: new Date(d.timestamp).toLocaleTimeString(),
-            heartRate: d.hrate_mean,
-            temperature: d.temp_avg,
-            gsr: d.gsr_mean,
+            heartRate: d.heart_rate,
+            temperature: d.temp,
+            gsr: d.gsr,
+            stressLevel: d.stress_level,
           }))
         )
       } catch (error) {
-        console.error('Error fetching trend data:', error)
+        console.log('Error fetching trend data:', error)
         setData([])
       } finally {
         setIsLoading(false)
       }
     }
-    fetchData()
+    fetchHistoricalData()
   }, [timeRange])
+
+  // WebSocket for real-time updates
+  useEffect(() => {
+    if (!user?.id) return 
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1]
+    if (!token) {
+      console.log('No authentication token found')
+      return
+    }
+
+    const ws = new WebSocket(`ws://localhost:8000/sensor/ws/sensor/data?token=${encodeURIComponent(token)}`)
+    
+    ws.onopen = () => console.log('WebSocket connected')
+    ws.onmessage = (event) => {
+      if (event.data === 'ping') return 
+      try {
+        const newData = JSON.parse(event.data)
+        setLiveData((prevData) => ({
+            ...prevData,
+            labels: [...(prevData.labels || []), new Date().toLocaleTimeString()],
+            heartRate: [...(prevData.heart_rate || []), newData.heart_rate],
+            temperature: [...prevData.temperature || [], newData.temperature],
+            gsr: [...prevData.gsr || [], newData.gsr],
+            stressLevel: [...prevData.stress_level || [], newData.stress_level],
+          }));
+        } catch (error){
+          console.log('Error parsing WebSocket message:', error)
+        } 
+      }
+      ws.onerror = (error) => console.log('WebSocket error:', error)
+      ws.onclose = () => console.log('WebSocket disconnected')
+
+      return () => ws.close()
+    }, [user])
 
   const graphConfig = [
     {
@@ -87,11 +146,11 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
   if (!isExpanded) {
     const latestData = data.length > 0 ? data[data.length - 1] : null
     const trendSummary = latestData
-      ? latestData.heartRate < 60
+      ? latestData.stressLevel < 1
         ? 'Stable'
-        : latestData.heartRate < 100
-        ? 'Moderate'
-        : 'Elevated'
+        : latestData.stressLevel < 3
+        ? 'Moderate Stress'
+        : 'High Stress'
       : 'Loading trends...'
 
     return (
@@ -99,7 +158,7 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
         initial="hidden"
         animate="visible"
         variants={fadeInVariants}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.6 }}
         onClick={onExpand}
         className={`p-4 rounded-lg shadow-md cursor-pointer ${
           isDark ? 'bg-gray-800 border-teal-700' : 'bg-teal-50 border-teal-200'

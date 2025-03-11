@@ -9,7 +9,7 @@ Allows email-based login.
 Verifies hashed passwords.
 Returns a valid JWT token on login.
 '''
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +20,6 @@ from database.db import get_db
 from database.models import User
 from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from pydantic import BaseModel, EmailStr
-from fastapi.security import OAuth2PasswordBearer
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -28,7 +27,6 @@ logger = logging.getLogger("auth")
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 class UserCreate(BaseModel):
     first_name: str

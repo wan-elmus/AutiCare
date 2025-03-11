@@ -1,7 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { FaEnvelope, FaLock, FaArrowRight } from 'react-icons/fa' // Modern icons
+import { FaEnvelope, FaLock, FaArrowRight } from 'react-icons/fa'
 import { motion } from 'framer-motion'
 import { useTheme } from '@/context/ThemeContext'
 
@@ -26,14 +26,14 @@ export default function LoginPage() {
       const response = await fetch('http://localhost:8000/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
         credentials: 'include',
+        body: JSON.stringify({ email, password }),
       })
       if (!response.ok) {
         const data = await response.json()
         throw new Error(data.detail || 'Invalid credentials')
       }
-      await new Promise((resolve) => setTimeout(resolve, 500)) // Smooth transiiition
+      await new Promise((resolve) => setTimeout(resolve, 500))
       router.push('/') // LandingPage.js (app/page.js)
     } catch (err) {
       setError(err.message)

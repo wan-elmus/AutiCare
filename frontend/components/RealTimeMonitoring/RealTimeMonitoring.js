@@ -1,14 +1,16 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useContext } from 'react'
 import { motion } from 'framer-motion'
 import { useTheme } from '@/context/ThemeContext'
-import { FaHeartbeat } from 'react-icons/fa'
+import { UserContext } from '@/context/UserContext'
+import { FaHeartbeat, FaTemperatureHigh, FaBolt } from 'react-icons/fa'
 import CircularGauge from '../../utils/CircularGauge'
 import StressIndicator from '../StressIndicator/StressIndicator'
 import { getHeartRateColor, getTemperatureColor, getGSRColor, getStressLevelColor } from '../../utils/colors'
 
 export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
   const { isDark } = useTheme()
+  const { user } = useContext(UserContext)
   const [heartRate, setHeartRate] = useState(null)
   const [temperature, setTemperature] = useState(null)
   const [gsr, setGsr] = useState(null)
@@ -21,9 +23,17 @@ export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
   }
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8000/ws/predictions')
+    if (!user?.id) return // Wait for user ID
+
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1]
+    if (!token) {
+      console.error('No token found in cookies')
+      return
+    }
+    const ws = new WebSocket(`ws://localhost:8000/sensor/ws/sensor/data?token=${encodeURIComponent(token)}`)
     ws.onopen = () => console.log('WebSocket connection established')
     ws.onmessage = (event) => {
+      if (event.data === 'ping') return
       try {
         const message = JSON.parse(event.data)
         setHeartRate(message.heart_rate)
@@ -34,16 +44,17 @@ export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
         console.log('Error parsing WebSocket message:', error)
       }
     }
-    ws.onerror = (error) => console.error('WebSocket error:', error)
+    ws.onerror = (error) => console.log('WebSocket error:', error)
     ws.onclose = (event) => console.log('WebSocket closed:', event.code, event.reason)
+
     return () => ws.close()
-  }, [])
+  }, [user])
 
   const handleToggle = (type) => {
     setAlerts((prev) => ({ ...prev, [type]: !prev[type] }))
   }
 
-  if (heartRate === null || temperature === null || gsr === null || stressLevel === null) {
+  if (heartRate === null || temperature === null || gsr === null || stressLevel === null || !user) {
     return (
       <div className="flex items-center justify-center min-h-[150px]">
         <motion.div
@@ -68,6 +79,7 @@ export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
           isDark ? 'bg-gray-800 border-teal-700' : 'bg-teal-50 border-teal-200'
         } border`}
       >
+        <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <FaHeartbeat className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
           <div>
@@ -77,7 +89,9 @@ export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
             <p className={`text-sm ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
               Stress Level: {stressLevel !== null ? stressLevel : 'Loading...'}
             </p>
+            </div>
           </div>
+          <FaArrowRight className={`h-5 w-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}/>
         </div>
       </motion.div>
     )
@@ -132,7 +146,7 @@ export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
           {/* Temperature */}
           <motion.div className={`p-4 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-teal-50'} shadow-md`}>
             <div className="flex items-center gap-2 mb-2">
-              <FaThermometerHalf className={`h-5 w-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+              <FaTemperatureHigh className={`h-5 w-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
               <span className={`text-sm font-medium ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>Temperature</span>
             </div>
             <CircularGauge

@@ -10,13 +10,10 @@ import logging
 import asyncio
 from fastapi import WebSocket, WebSocketDisconnect, status
 from starlette.websockets import WebSocketState
-from jose import jwt, JWTError
-from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User
-from database.db import get_db
-from config import SECRET_KEY, ALGORITHM
-from typing import Dict, Optional
+from utils.auth import get_current_user
+from typing import Dict
 
 # Configure logging once
 logging.basicConfig(level=logging.INFO)
@@ -27,31 +24,20 @@ class WebSocketManager:
         self.active_connections: Dict[str, WebSocket] = {}
         self.user_map: Dict[str, str] = {}
 
-    # async def authenticate_user(self, token: str, db: AsyncSession) -> Optional[User]:
-    #     """Validate JWT and return authenticated user"""
-    #     try:
-    #         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    #         email: str = payload.get("sub")
-    #         if not email:
-    #             logger.warning("Missing email in JWT token")
-    #             return None
-                
-    #         result = await db.execute(select(User).where(User.email == email))
-    #         return result.scalar_one_or_none()
-            
-    #     except JWTError as e:
-    #         logger.error(f"JWT validation failed: {str(e)}")
-    #         return None
-
     async def connect(
         self, websocket: WebSocket, 
-        # token: str, 
+        token: str, 
         db: AsyncSession,
         user: User
         ):
         """Authenticate and register WebSocket connection"""
         try:
-            # user = await self.authenticate_user(token, db)
+            # Simulating a request object for get_current_user
+            class MockRequest:
+                def __init__(self, token):
+                    self.cookies = {"token": token}
+
+            user = await get_current_user(MockRequest(token), db)
             if not user:
                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                 return False

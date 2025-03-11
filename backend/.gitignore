@@ -61,6 +61,7 @@ pip-selfcheck.json
 .env.production
 .env.*
 !.env.example  # Keep example files
+/simulate_sensor_data.py
 
 # ================================
 # IDE & Editor Settings
