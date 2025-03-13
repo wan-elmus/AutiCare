@@ -11,11 +11,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("auth")
 
 async def get_current_user(
-    request: Request, 
+    token: str,
+    # request: Request, 
     db: AsyncSession = Depends(get_db)
     ):
-    token = request.cookies.get("token")
-    logger.info(f"Checking cookies: {request.cookies}")
+    # token = request.cookies.get("token")
+    # logger.info(f"Checking cookies: {request.cookies}")
     if not token:
         logger.info("No token found in cookies")
         return None

@@ -5,10 +5,12 @@ import { useTheme } from '@/context/ThemeContext'
 import { FaChartLine, FaArrowRight } from 'react-icons/fa'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Brush } from 'recharts'
 import { UserContext } from '@/context/UserContext'
+import { useWebSocket } from '@/context/WebSocketContext';
 
 export default function TrendGraphs({ isExpanded = false, onExpand }) {
   const { isDark } = useTheme()
   const { user, setUser } = useContext(UserContext)
+  const { wsMessages } = useWebSocket();
   const [data, setData] = useState([])
   const [timeRange, setTimeRange] = useState('Today')
   const [isLoading, setIsLoading] = useState(true)
@@ -44,23 +46,32 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
   useEffect(() => {
     const fetchHistoricalData = async () => {
       setIsLoading(true)
+      if (!user?.id) {
+        console.log('No user ID available, skipping historical data fetch');
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
       try {
         const days = timeRange === 'Last Hour' ? 0.0417 : timeRange === 'Today' ? 1 : 7
         const response = await fetch(
-          `http://localhost:8000/history/processed_data?days=${days}&user_id=${user.id}`,
+          `http://localhost:8000/history/processed_data?days=${days}`,
           {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
           }
         )
-        if (!response.ok) throw new Error(`Failed to fetch data: ${response.status}`)
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Failed to fetch data: ${response.status} - ${JSON.stringify(errorData)}`);
+        }
         const historicalData = await response.json()
         setData(
           historicalData.map((d) => ({
             time: new Date(d.timestamp).toLocaleTimeString(),
             heartRate: d.heart_rate,
-            temperature: d.temp,
+            temperature: d.temperature,
             gsr: d.gsr,
             stressLevel: d.stress_level,
           }))
@@ -73,41 +84,26 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
       }
     }
     fetchHistoricalData()
-  }, [timeRange])
+  }, [timeRange, user?.id]);
 
-  // WebSocket for real-time updates
+  // Append real-time data from WebSocket
   useEffect(() => {
-    if (!user?.id) return 
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1]
-    if (!token) {
-      console.log('No authentication token found')
-      return
-    }
+    if (!user?.id) return;
 
-    const ws = new WebSocket(`ws://localhost:8000/sensor/ws/sensor/data?token=${encodeURIComponent(token)}`)
-    
-    ws.onopen = () => console.log('WebSocket connected')
-    ws.onmessage = (event) => {
-      if (event.data === 'ping') return 
-      try {
-        const newData = JSON.parse(event.data)
-        setLiveData((prevData) => ({
-            ...prevData,
-            labels: [...(prevData.labels || []), new Date().toLocaleTimeString()],
-            heartRate: [...(prevData.heart_rate || []), newData.heart_rate],
-            temperature: [...prevData.temperature || [], newData.temperature],
-            gsr: [...prevData.gsr || [], newData.gsr],
-            stressLevel: [...prevData.stress_level || [], newData.stress_level],
-          }));
-        } catch (error){
-          console.log('Error parsing WebSocket message:', error)
-        } 
-      }
-      ws.onerror = (error) => console.log('WebSocket error:', error)
-      ws.onclose = () => console.log('WebSocket disconnected')
+    const latestMessage = wsMessages[wsMessages.length - 1];
+    if (!latestMessage) return;
 
-      return () => ws.close()
-    }, [user])
+    setData((prevData) => [
+      ...prevData,
+      {
+        time: new Date().toLocaleTimeString(),
+        heartRate: latestMessage.heart_rate,
+        temperature: latestMessage.temperature,
+        gsr: latestMessage.gsr,
+        stressLevel: latestMessage.stress_level,
+      },
+    ]);
+  }, [user?.id, wsMessages]);
 
   const graphConfig = [
     {

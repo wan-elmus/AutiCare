@@ -1,7 +1,7 @@
 """
 Manages notification-related operations.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.db import get_db
@@ -19,10 +19,13 @@ logger = logging.getLogger("notifications")
 
 @router.get("/")
 async def get_notifications(
-    user: User = Depends(get_current_user), 
+    request: Request,
+    # user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db),
     limit: int = 8
 ):
+    token = request.cookies.get("token")
+    user = await get_current_user(token=token, db=db)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     try:
@@ -53,9 +56,12 @@ async def get_notifications(
 @router.put("/{notification_id}/dismiss")
 async def dismiss_notification(
     notification_id: int,
-    user: User = Depends(get_current_user),
+    # user: User = Depends(get_current_user),
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
+    token = request.cookies.get("token")
+    user = await get_current_user(token=token, db=db)
     try:
         result = await db.execute(
             select(Notification).where(Notification.id == notification_id, Notification.user_id == user.id)
@@ -81,9 +87,12 @@ async def dismiss_notification(
 
 @router.put("/dismiss-all")
 async def dismiss_all_notifications(
-    user: User = Depends(get_current_user),
+    # user: User = Depends(get_current_user),
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
+    token = request.cookies.get("token")
+    user = await get_current_user(token=token, db=db)
     try:
         await db.execute(
             Notification.__table__.update()

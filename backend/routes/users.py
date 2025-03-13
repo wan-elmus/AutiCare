@@ -1,7 +1,7 @@
 """
 Manages user-related operations, including CRUD for user profiles.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.db import get_db
@@ -29,8 +29,12 @@ class UserUpdate(BaseModel):
 
 @router.get("/users/me")
 async def get_current_user_details(
-    current_user: User = Depends(get_current_user)
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    # current_user: User = Depends(get_current_user)
 ):
+    token = request.cookies.get("token")
+    current_user = await get_current_user(token=token, db=db)
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -44,9 +48,12 @@ async def get_current_user_details(
 @router.put("/users/me")
 async def update_user(
     user_data: UserUpdate, 
-    current_user: User = Depends(get_current_user), 
+    request: Request,
+    # current_user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ):
+    token = request.cookies.get("token")
+    current_user = await get_current_user(token=token, db=db)
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     

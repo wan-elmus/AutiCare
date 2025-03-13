@@ -3,18 +3,20 @@ import { useState, useEffect, useContext } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '@/context/ThemeContext'
 import { UserContext } from '@/context/UserContext'
+import { useWebSocket } from '@/context/WebSocketContext'
 import { FaHeartbeat, FaUserCircle, FaChartLine, FaArrowRight, FaTimes } from 'react-icons/fa'
 import RealTimeMonitoring from '../RealTimeMonitoring/RealTimeMonitoring'
 import ChildProfile from '../ChildProfile/ChildProfile'
 import TrendGraphs from '../TrendGraphs/TrendGraphs'
 import Navbar from '../Navbar/Navbar'
 import Footer from '../Footer/Footer'
-import { AlertCircle } from 'lucide-react'
+import { X, AlertCircle } from 'lucide-react'
 
 export default function LandingPageClient({ initialUserProfile }) {
   const { isDark } = useTheme()
   const { user, setUser } = useContext(UserContext)
   const [userProfile, setUserProfile] = useState(initialUserProfile)
+  const { wsMessages } = useWebSocket()
   const [notifications, setNotifications] = useState([])
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeComponent, setActiveComponent] = useState(null)
@@ -71,69 +73,46 @@ export default function LandingPageClient({ initialUserProfile }) {
     }
     fetchNotifications()
   }, [])
-    // WebSocket setup only when user is authenticated
-  useEffect(() => {
-    if (!user?.id) return;
-    
-    const setupWebSocket = async () => {
-      await new Promise(resolve => setTimeout(resolve, 500));  // 500ms delay
-      console.log('Cookies after delay:', document.cookie);
-      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-      if (!token) {
-        console.error('No token found in cookies');
-      return;
+
+    // Handle WebSocket messages for notifications
+    useEffect(() => {
+      const latestMessage = wsMessages[wsMessages.length - 1];
+      if (!latestMessage) return;
+  
+      if (latestMessage.type === 'dismiss_notification') {
+        setNotifications((prev) => prev.filter((n) => n.id !== latestMessage.id));
+      } else if (latestMessage.type === 'dismiss_all_notifications') {
+        setNotifications([]);
       }
-      const ws = new WebSocket(`ws://localhost:8000/sensor/ws/sensor/data?token=${encodeURIComponent(token)}`);
-      ws.onopen = () => console.log('WebSocket connection established for notifications');
-      ws.onmessage = (event) => {
-        if (event.data === 'ping') return;
-        try {
-          const message = JSON.parse(event.data);
-          if (message.type === 'dismiss_notification') {
-            setNotifications((prev) => prev.filter((n) => n.id !== message.id));
-          } else if (message.type === 'dismiss_all_notifications') {
-          setNotifications([]);
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-      ws.onerror = (error) => console.error('WebSocket error:', error);
-      ws.onclose = () => console.log('WebSocket closed');
-
-      return () => ws.close();
+    }, [wsMessages]);
+  
+    const dismissNotification = async (id) => {
+      try {
+        const response = await fetch(`http://localhost:8000/api/notifications/${id}/dismiss`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error('Failed to dismiss notification');
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+      } catch (error) {
+        console.log('Error dismissing notification:', error);
+      }
     };
-    const cleanup = setupWebSocket();
-    return () => cleanup.then(ws => ws?.close());
-  }, [user?.id]);
-
-  const dismissNotification = async (id) => {
-    try {
-      const response = await fetch(`http://localhost:8000/api/notifications/${id}/dismiss`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      })
-      if (!response.ok) throw new Error('Failed to dismiss notification')
-      setNotifications((prev) => prev.filter((n) => n.id !== id))
-    } catch (error) {
-      console.log('Error dismissing notification:', error)
+  
+    const dismissAllNotifications = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/notifications/dismiss-all', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error('Failed to dismiss all notifications');
+        setNotifications([]);
+      } catch (error) {
+        console.error('Error dismissing all notifications:', error);
+      }
     }
-  }
-
-  const dismissAllNotifications = async () => {
-    try {
-      const response = await fetch('http://localhost:8000/api/notifications/dismiss-all', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      })
-      if (!response.ok) throw new Error('Failed to dismiss all notifications')
-      setNotifications([])
-    } catch (error) {
-      console.error('Error dismissing all notifications:', error)
-    }
-  }
 
   const cardVariants = {
     hidden: { opacity: 0, scale: 0.9 },

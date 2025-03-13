@@ -26,28 +26,19 @@ class WebSocketManager:
 
     async def connect(
         self, websocket: WebSocket, 
-        token: str, 
+        # token: str, 
         db: AsyncSession,
         user: User
         ):
         """Authenticate and register WebSocket connection"""
         try:
-            # Simulating a request object for get_current_user
-            class MockRequest:
-                def __init__(self, token):
-                    self.cookies = {"token": token}
-
-            user = await get_current_user(MockRequest(token), db)
-            if not user:
-                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-                return False
-
             if user.email in self.active_connections:
                 logger.warning(f"Duplicate connection for {user.email}")
-                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                if websocket.client_state == WebSocketState.CONNECTED:
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Duplicate connection")
                 return False
 
-            await websocket.accept()
+            # await websocket.accept()
             self.active_connections[user.email] = websocket
             self.user_map[str(user.id)] = user.email
             logger.info(f"User {user.email} connected. Active: {len(self.active_connections)}")
@@ -55,21 +46,19 @@ class WebSocketManager:
 
         except Exception as e:
             logger.error(f"Connection error: {str(e)}")
-            await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Internal error")
             return False
 
     async def disconnect(self, email: str):
         """Cleanup disconnected clients"""
         websocket = self.active_connections.pop(email, None)
-        if websocket:
+        if websocket and websocket.client_state == WebSocketState.CONNECTED:
             try:
-                if websocket.client_state == WebSocketState.CONNECTED:
-                    await websocket.close()
+                await websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
+                logger.info(f"Closed WebSocket for {email}")
             except Exception as e:
-                if "after sending 'websocket.close'" in str(e):
-                    logger.info(f"Websocket for {email} already closed")
-                else:
-                    logger.warning(f"Error closing connection for {email}: {str(e)}")
+                logger.warning(f"Error closing connection for {email}: {str(e)}")
 
         user_id = next((uid for uid, em in self.user_map.items() if em == email), None)
         if user_id:
@@ -91,8 +80,9 @@ class WebSocketManager:
             return
         
         try:
-            await websocket.send_text(message)
-            logger.info(f"Sent message to {email}: {message}")
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_text(message)
+                logger.info(f"Sent message to {email}: {message}")
         except WebSocketDisconnect:
             logger.info(f"User {email} disconnected during message send")
             await self.disconnect(email)
@@ -102,7 +92,7 @@ class WebSocketManager:
             
     async def ping_connections(self, interval: int = 30):
         """
-        Periodically send a 'ping' message to all connected clients.
+        Periodically send a ping message to all connected clients.
         If a ping fails or the connection is no longer active, disconnect that client.
         """
         while True:
@@ -122,7 +112,8 @@ class WebSocketManager:
         disconnected = []
         for email, ws in self.active_connections.items():
             try:
-                await ws.send_text(message)
+                if ws.client_state == WebSocketState.CONNECTED:
+                    await ws.send_text(message)
             except WebSocketDisconnect:
                 logger.info(f"Client {email} disconnected during broadcast")
                 disconnected.append(email)

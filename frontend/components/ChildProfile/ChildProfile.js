@@ -1,97 +1,83 @@
-'use client'
-import { useState, useEffect, useContext } from 'react'
-import { FaUserCircle, FaArrowRight } from 'react-icons/fa'
-import { X, AlertCircle } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useTheme } from '@/context/ThemeContext'
-import { UserContext } from '@/context/UserContext'
+'use client';
+import { useState, useEffect, useContext } from 'react';
+import { FaUserCircle, FaArrowRight } from 'react-icons/fa';
+import { X, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from '@/context/ThemeContext';
+import { UserContext } from '@/context/UserContext';
+import { useWebSocket } from '@/context/WebSocketContext';
 
 export default function ChildProfile({ initialData, isExpanded = false, onExpand }) {
-  const { isDark } = useTheme()
-  const { user } = useContext(UserContext)
-  const [userProfile, setUserProfile] = useState(initialData || null)
-  const [notifications, setNotifications] = useState([])
-  const [isLoading, setIsLoading] = useState(!initialData && !user)
+  const { isDark } = useTheme();
+  const { user } = useContext(UserContext);
+  const { wsMessages } = useWebSocket();
+  const [userProfile, setUserProfile] = useState(initialData || null);
+  const [notifications, setNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(!initialData && !user);
 
-  // Animation
+  // Animation variants
   const fadeInVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
-  }
+  };
 
   const notificationVariants = {
     hidden: { opacity: 0, x: -20 },
     visible: { opacity: 1, x: 0, transition: { duration: 0.4 } },
     exit: { opacity: 0, x: 20, transition: { duration: 0.3 } },
-  }
+  };
 
-  const profileData = user|| initialData
+  const profileData = user || initialData;
 
-  // notifications
+  // Fetch notifications
   useEffect(() => {
     async function fetchNotifications() {
-      if (!profileData?.id) return
+      if (!profileData?.id) return;
       try {
         const response = await fetch('http://localhost:8000/api/notifications/', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-        })
-        if (!response.ok) throw new Error(`Failed to fetch notifications: ${response.status}`)
-        const data = await response.json()
-        setNotifications(data.notifications || [])
+        });
+        if (!response.ok) throw new Error(`Failed to fetch notifications: ${response.status}`);
+        const data = await response.json();
+        setNotifications(data.notifications || []);
       } catch (error) {
-        console.log('Error fetching notifications:', error)
-        setNotifications([])
-      } finally{
-        setIsLoading(false)
+        console.log('Error fetching notifications:', error);
+        setNotifications([]);
+      } finally {
+        setIsLoading(false);
       }
     }
-    fetchNotifications()
-  }, [profileData])
+    fetchNotifications();
+  }, [profileData?.id]);
 
-  useEffect(() => {  
+  // Handle WebSocket messages for notifications
+  useEffect(() => {
     if (!profileData?.id) return;
-    
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-    if (!token) {
-      console.error('No token found in cookies');
-      return;
+
+    const latestMessage = wsMessages[wsMessages.length - 1];
+    if (!latestMessage) return;
+
+    if (latestMessage.type === 'dismiss_notification') {
+      setNotifications((prev) => prev.filter((n) => n.id !== latestMessage.id));
+    } else if (latestMessage.type === 'dismiss_all_notifications') {
+      setNotifications([]);
     }
-
-    const ws = new WebSocket(`ws://localhost:8000/sensor/ws/sensor/data?token=${encodeURIComponent(token)}`);
-    ws.onopen = () => console.log('WebSocket connection established for notifications');
-    ws.onmessage = (event) => {
-      if (event.data === 'ping') return;
-      try {
-        const message = JSON.parse(event.data);
-        if (message.type === 'dismiss_notification') {
-          setNotifications((prev) => prev.filter((n) => n.id !== message.id));
-        } else if (message.type === 'dismiss_all_notifications') {
-          setNotifications([]);
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-    ws.onerror = (error) => console.error('WebSocket error:', error);
-    ws.onclose = () => console.log('WebSocket closed');
-
-    return () => ws.close();
-  }, [profileData]);
+  }, [wsMessages, profileData?.id]);
 
   const dismissNotification = async (id) => {
     try {
       const response = await fetch(`http://localhost:8000/api/notifications/${id}/dismiss`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
       });
       if (!response.ok) throw new Error(`Failed to dismiss notification: ${response.status}`);
-      setNotifications((prev) => prev.filter((n) => n.id !== id))
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
     } catch (error) {
-      console.log('Error dismissing notification:', error)
-      }
+      console.log('Error dismissing notification:', error);
+    }
   };
 
   const dismissAllNotifications = async () => {
@@ -100,13 +86,13 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-      })
-      if (!response.ok) throw new Error('Failed to dismiss all notifications')
-      setNotifications([])
+      });
+      if (!response.ok) throw new Error('Failed to dismiss all notifications');
+      setNotifications([]);
     } catch (error) {
-      console.error('Error dismissing all notifications:', error)
+      console.error('Error dismissing all notifications:', error);
     }
-  }
+  };
 
   if (isLoading || !profileData) {
     return (
@@ -117,17 +103,8 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
           className={`h-8 w-8 border-4 border-t-teal-600 rounded-full ${isDark ? 'border-gray-700' : 'border-teal-200'}`}
         />
       </div>
-    )
+    );
   }
-
-  // if (!userProfile) {
-  //   return (
-  //     <div className={`text-center p-6 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
-  //       Unable to load profile.
-  //     </div>
-  //   )
-  // }
-
 
   if (!isExpanded) {
     return (
@@ -156,10 +133,9 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
           <FaArrowRight className={`h-5 w-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
         </div>
       </motion.div>
-    )
+    );
   }
 
-  
   return (
     <motion.div
       initial="hidden"
@@ -207,23 +183,23 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
       </div>
 
       <div className="flex justify-between items-center mb-4">
-      <h2 className={`text-xl font-semibold mb-4 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-        Alerts & Recommendations
-      </h2>
-      {notifications.length > 0 && (
-        <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={dismissAllNotifications}
-        className={`text-sm px-3 py-1 rounded-md ${
-          isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'
-        }`}
-      >
-        Dismiss All
-      </motion.button>
-      )}
+        <h2 className={`text-xl font-semibold mb-4 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+          Alerts & Recommendations
+        </h2>
+        {notifications.length > 0 && (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={dismissAllNotifications}
+            className={`text-sm px-3 py-1 rounded-md ${
+              isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'
+            }`}
+          >
+            Dismiss All
+          </motion.button>
+        )}
       </div>
-        
+
       <div className="space-y-4">
         <AnimatePresence>
           {notifications.length > 0 ? (
@@ -253,7 +229,11 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
                 <div className="flex items-start gap-3">
                   <AlertCircle
                     className={`h-5 w-5 ${
-                      notification.level === 'high' ? 'text-red-700' : notification.level === 'slight' ? 'text-yellow-700' : 'text-green-700'
+                      notification.level === 'high'
+                        ? 'text-red-700'
+                        : notification.level === 'slight'
+                        ? 'text-yellow-700'
+                        : 'text-green-700'
                     }`}
                   />
                   <div>
@@ -273,5 +253,5 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
         </AnimatePresence>
       </div>
     </motion.div>
-  )
+  );
 }

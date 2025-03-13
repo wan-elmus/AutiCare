@@ -1,9 +1,10 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useContext, useEffect } from 'react'
 import { FaEnvelope, FaLock, FaArrowRight } from 'react-icons/fa'
 import { motion } from 'framer-motion'
 import { useTheme } from '@/context/ThemeContext'
+import { UserContext } from '@/context/UserContext'
 
 export default function LoginPage() {
   const { isDark } = useTheme()
@@ -12,11 +13,56 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const { user, setUser } = useContext(UserContext)
+  const [tokenExpiryMinutes, setTokenExpiryMinutes] = useState(null);
 
   const fadeInVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
   }
+  // useEffect(() => {
+  //   if (user?.id) {
+  //     router.push('/');
+  //   }
+  // }, [user, router]);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      if (!tokenExpiryMinutes) {
+        try {
+          const response = await fetch('http://localhost:8000/auth/config', { credentials: 'include' });
+          const data = await response.json();
+          setTokenExpiryMinutes(data.access_token_expire_minutes);
+        } catch (err) {
+          console.error('Failed to fetch token expiry:', err);
+          setTokenExpiryMinutes(15);
+        }
+      }
+    };
+    fetchConfig();
+  }, [tokenExpiryMinutes]);
+
+  useEffect(() => {
+    const refreshToken = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error('Refresh failed');
+        const data = await response.json();
+        console.log('Refreshed token:', data.access_token);
+      } catch (err) {
+        console.error('Token refresh error:', err);
+        setUser(null);
+        router.push('/auth/login');
+      }
+    };
+    if (user?.id && tokenExpiryMinutes) {
+      const interval = setInterval(refreshToken, (tokenExpiryMinutes - 1) * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [user, setUser, router, tokenExpiryMinutes]);
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -29,10 +75,18 @@ export default function LoginPage() {
         credentials: 'include',
         body: JSON.stringify({ email, password }),
       })
-      if (!response.ok) {
+      
         const data = await response.json()
+
+        if (!response.ok) {      
         throw new Error(data.detail || 'Invalid credentials')
       }
+      console.log('Login response data:', JSON.stringify(data, null, 2)); // Detailed log
+      const userData = data.user;
+      if (!userData || !userData.id) {
+        throw new Error('No user data or ID in response');
+      }
+      setUser(userData)
       await new Promise((resolve) => setTimeout(resolve, 500))
       router.push('/') // LandingPage.js (app/page.js)
     } catch (err) {

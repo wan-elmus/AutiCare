@@ -3,6 +3,7 @@ import { useEffect, useState, useContext } from 'react'
 import { motion } from 'framer-motion'
 import { useTheme } from '@/context/ThemeContext'
 import { UserContext } from '@/context/UserContext'
+import { useWebSocket } from '@/context/WebSocketContext'
 import { FaHeartbeat, FaTemperatureHigh, FaBolt } from 'react-icons/fa'
 import CircularGauge from '../../utils/CircularGauge'
 import StressIndicator from '../StressIndicator/StressIndicator'
@@ -11,50 +12,53 @@ import { getHeartRateColor, getTemperatureColor, getGSRColor, getStressLevelColo
 export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
   const { isDark } = useTheme()
   const { user } = useContext(UserContext)
+  const { wsMessages } = useWebSocket();
   const [heartRate, setHeartRate] = useState(null)
   const [temperature, setTemperature] = useState(null)
   const [gsr, setGsr] = useState(null)
   const [stressLevel, setStressLevel] = useState(null)
   const [alerts, setAlerts] = useState({ heartRate: false, temperature: false, gsr: false })
+  const [isLoading, setIsLoading] = useState(true);
 
   const fadeInVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
   }
 
+  // Handling WebSocket messages
   useEffect(() => {
-    if (!user?.id) return // Wait for user ID
-
-    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1]
-    if (!token) {
-      console.error('No token found in cookies')
-      return
+    if (!user?.id) {
+      console.log('No user ID, waiting...');
+      setIsLoading(true);
+      return;
     }
-    const ws = new WebSocket(`ws://localhost:8000/sensor/ws/sensor/data?token=${encodeURIComponent(token)}`)
-    ws.onopen = () => console.log('WebSocket connection established')
-    ws.onmessage = (event) => {
-      if (event.data === 'ping') return
-      try {
-        const message = JSON.parse(event.data)
-        setHeartRate(message.heart_rate)
-        setTemperature(message.temperature)
-        setGsr(message.gsr)
-        setStressLevel(message.stress_level)
-      } catch (error) {
-        console.log('Error parsing WebSocket message:', error)
-      }
+    if (wsMessages.length === 0) {
+      console.log('No WebSocket messages yet');
+      setIsLoading(true);
+      return;
     }
-    ws.onerror = (error) => console.log('WebSocket error:', error)
-    ws.onclose = (event) => console.log('WebSocket closed:', event.code, event.reason)
 
-    return () => ws.close()
-  }, [user])
+    const latestMessage = wsMessages[wsMessages.length - 1];
+    if (!latestMessage || latestMessage.type !== 'sensor_data') {
+      console.log('No valid sensor_data message yet:', latestMessage);
+      setIsLoading(true);
+      return;
+    }
+
+    console.log('Updating real-time metrics:', latestMessage);
+
+    setHeartRate(latestMessage.heart_rate);
+    setTemperature(latestMessage.temperature);
+    setGsr(latestMessage.gsr);
+    setStressLevel(latestMessage.stress_level);
+    setIsLoading(false)
+  }, [user?.id, wsMessages]);
 
   const handleToggle = (type) => {
     setAlerts((prev) => ({ ...prev, [type]: !prev[type] }))
   }
 
-  if (heartRate === null || temperature === null || gsr === null || stressLevel === null || !user) {
+  if (isLoading || !user) {
     return (
       <div className="flex items-center justify-center min-h-[150px]">
         <motion.div
@@ -62,6 +66,7 @@ export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
           className={`h-8 w-8 border-4 border-t-teal-600 rounded-full ${isDark ? 'border-gray-700' : 'border-teal-200'}`}
         />
+        <span className="ml-2">Waiting for real-time data...</span>
       </div>
     )
   }

@@ -1,7 +1,7 @@
 '''
 Fetches historical predictions for dashboard visualization.
 '''
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.db import get_db
@@ -14,7 +14,16 @@ router = APIRouter(prefix="/history", tags=["history"])
 logger = logging.getLogger("history")
 
 @router.get("/processed_data")
-async def get_processed_data(days: float = 7.0, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_processed_data(
+    request: Request,
+    days: float = 7.0, 
+    # user: User = Depends(get_current_user), 
+    db: AsyncSession = Depends(get_db)
+    ):
+    token = request.cookies.get("token")
+    user = await get_current_user(token=token, db=db)  # Pass token explicitly
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:
         start_date = datetime.utcnow() - timedelta(days=days)
         # SensorData

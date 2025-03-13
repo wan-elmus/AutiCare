@@ -1,22 +1,22 @@
-'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useTheme } from '@/context/ThemeContext'
-import { MoonIcon, SunIcon, Cog6ToothIcon } from '@heroicons/react/24/solid'
-import { FaUserCircle, FaSignOutAlt, FaEdit } from 'react-icons/fa'
-import { motion, AnimatePresence } from 'framer-motion'
+'use client';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTheme } from '@/context/ThemeContext';
+import { MoonIcon, SunIcon, Cog6ToothIcon } from '@heroicons/react/24/solid';
+import { FaUserCircle, FaSignOutAlt, FaEdit } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Navbar({ userData }) {
-  const { isDark, toggleTheme } = useTheme()
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const router = useRouter()
+  const { isDark, toggleTheme } = useTheme();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const router = useRouter();
 
   const dropdownVariants = {
     hidden: { opacity: 0, y: -10 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
     exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
-  }
+  };
 
   const HamburgerButton = () => (
     <button
@@ -28,7 +28,19 @@ export default function Navbar({ userData }) {
       <div className={`w-6 h-0.5 bg-teal-100 my-1 transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-0' : ''}`}></div>
       <div className={`w-6 h-0.5 bg-teal-100 transform transition-all duration-300 ${isMobileMenuOpen ? '-rotate-45 -translate-y-1.5' : ''}`}></div>
     </button>
-  )
+  );
+
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:8000/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      router.push('/auth/login');
+    } catch (error) {
+      console.log('Logout failed:', error);
+    }
+  };
 
   return (
     <nav className={`fixed top-0 left-0 w-full z-50 shadow-lg ${isDark ? 'bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-r from-teal-50 via-blue-50 to-teal-50'}`}>
@@ -98,44 +110,74 @@ export default function Navbar({ userData }) {
               className={`lg:hidden ${isDark ? 'bg-gray-900' : 'bg-teal-50'} px-4 py-4 shadow-inner`}
             >
               <div className="flex flex-col gap-4">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={toggleTheme}
-                  className={`p-2 rounded-full ${isDark ? 'hover:bg-gray-700' : 'hover:bg-teal-100'} transition-colors duration-300`}
+                  className={`p-2 rounded-full w-full flex items-center justify-center ${isDark ? 'hover:bg-gray-700' : 'hover:bg-teal-100'} transition-colors duration-300`}
                   aria-label="Toggle theme"
                 >
                   {isDark ? <SunIcon className="h-6 w-6 text-yellow-400" /> : <MoonIcon className="h-6 w-6 text-teal-600" />}
-                </button>
-                <button
+                  <span className={`ml-2 ${isDark ? 'text-teal-300' : 'text-teal-600'}`}>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => {
-                    setIsProfileOpen(!isProfileOpen)
-                    setIsMobileMenuOpen(false)
+                    setIsProfileOpen(true);
+                    setIsMobileMenuOpen(false);
                   }}
-                  className={`p-2 rounded-full ${isDark ? 'hover:bg-gray-700' : 'hover:bg-teal-100'} transition-colors duration-300`}
-                  aria-label="User profile"
+                  className={`w-full py-2 px-4 text-sm rounded-lg flex items-center justify-center gap-2 ${isDark ? 'bg-teal-600 hover:bg-teal-700' : 'bg-teal-500 hover:bg-teal-600'} text-white`}
                 >
-                  <FaUserCircle className={`h-6 w-6 ${isDark ? 'text-teal-300' : 'text-teal-600'}`} />
-                </button>
+                  <FaEdit /> Edit Profile
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    handleLogout();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full py-2 px-4 text-sm rounded-lg flex items-center justify-center gap-2 bg-red-600 text-white hover:bg-red-700"
+                >
+                  <FaSignOutAlt /> Logout
+                </motion.button>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Profile Dropdown for Mobile (Overlay) */}
+        <AnimatePresence>
+          {isProfileOpen && (
+            <motion.div
+              variants={dropdownVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className={`lg:hidden absolute top-16 left-0 w-full ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-teal-100'} rounded-lg shadow-2xl border p-4`}
+            >
+              <ProfileDropdown userData={userData} setIsProfileOpen={setIsProfileOpen} isDark={isDark} />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     </nav>
-  )
+  );
 }
 
-function ProfileDropdown({ userData, setIsProfileOpen, isDark }) { 
-  const [isEditing, setIsEditing] = useState(false)
+function ProfileDropdown({ userData, setIsProfileOpen, isDark }) {
+  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     childName: userData?.child_name || '',
     childAge: userData?.child_age || '',
     childBio: userData?.child_bio || '',
     newPassword: '',
-  })
-  const router = useRouter()
+  });
+  const router = useRouter();
 
   const handleUpdate = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     try {
       const response = await fetch('http://localhost:8000/users/me', {
         method: 'PUT',
@@ -147,29 +189,29 @@ function ProfileDropdown({ userData, setIsProfileOpen, isDark }) {
           child_bio: formData.childBio,
           password: formData.newPassword || undefined,
         }),
-      })
+      });
       if (response.ok) {
-        setIsEditing(false)
-        setIsProfileOpen(false)
+        setIsEditing(false);
+        setIsProfileOpen(false);
       } else {
-        console.error(`Update failed: ${response.status}`)
+        console.error(`Update failed: ${response.status}`);
       }
     } catch (error) {
-      console.log('Update failed:', error)
+      console.log('Update failed:', error);
     }
-  }
+  };
 
   const handleLogout = async () => {
     try {
       await fetch('http://localhost:8000/auth/logout', {
         method: 'POST',
         credentials: 'include',
-      })
-      router.push('/auth/login')
+      });
+      router.push('/auth/login');
     } catch (error) {
-      console.log('Logout failed:', error)
+      console.log('Logout failed:', error);
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -276,5 +318,5 @@ function ProfileDropdown({ userData, setIsProfileOpen, isDark }) {
         </>
       )}
     </div>
-  )
+  );
 }
