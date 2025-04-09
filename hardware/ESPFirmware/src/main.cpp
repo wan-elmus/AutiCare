@@ -8,17 +8,16 @@
 
 void setup()
 {
-    Serial.begin(9600);
-    setupOLED(setupWiFi());
+    Serial.begin(BAUD_RATE);
+    // setupOLED(setupWiFi());
     setupPulseSensor();
 }
 
 
 void loop()
 {
-    float payload[5] = {25.5, 72.0, 450.5, 37.7749, -122.4194};
-    displayData(payload);
-    delay(1000);
     readPulse();
-    send(payload);
+    float payload[5] = {25.5, 72.0, 450.5, 37.7749, -122.4194};
+    // displayData(payload);
+    // send(payload);
 }

@@ -1,2 +1,2 @@
 void setupPulseSensor();
-int readPulse();
+void readPulse();
