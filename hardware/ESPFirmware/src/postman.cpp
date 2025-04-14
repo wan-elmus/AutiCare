@@ -1,3 +1,4 @@
+#include "data.h"
 #include "postman.h"
 
 #include <ESP8266WiFi.h>
@@ -10,7 +11,8 @@ HTTPClient http;
 
 const char* ssid = "universe";
 const char* password = "one2eight!";
-const char* API_URL = "http://192.168.100.7:8000/sensor/data";
+// const char* API_URL = "http://192.168.100.7:8000/sensor/data";
+const char* API_URL = "http://192.168.100.8:7777/test";
 
 bool setupWiFi(){
     Serial.print("Connecting to ");
@@ -35,16 +37,14 @@ bool setupWiFi(){
     return true;
 }
 
-bool send(float payload[5]) {
-    char* variable[5] = {"temperature", "heart_rate", "gsr", "lat", "long"};
-    String postData = "";
-
-    // Construct POST data in JSON format (recommended)
-    postData = "{";
-    for (unsigned long i = 0; i < 5; i++) {
-        postData += "\"" + String(variable[i]) + "\":" + String(payload[i]);
-        if (i < 4) postData += ",";  // Add comma except for last element
-    }
+bool send(const SensorData &payload) {
+    // Construct JSON payload directly
+    String postData = "{";
+    postData += "\"temperature\":" + String(payload.temperature, 6) + ",";
+    postData += "\"heart_rate\":" + String(payload.BPM, 6) + ",";
+    postData += "\"gsr\":" + String(payload.GSR) + ",";
+    postData += "\"lat\":0.000000,";  // Hardcoded latitude
+    postData += "\"long\":0.000000";  // Hardcoded longitude
     postData += "}";
 
     String URL = API_URL;

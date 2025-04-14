@@ -1,2 +1,2 @@
 bool setupWiFi();
-bool send(float[5]);
+bool send(const SensorData &payload);

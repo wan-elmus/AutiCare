@@ -2,22 +2,27 @@
 #include <SPI.h>
 #include <Wire.h>
 #include "defs.h"
+#include "sensors.h"
 #include "postman.h"
-#include "pulse.h"
 #include "oled.h"
 
 void setup()
 {
     Serial.begin(BAUD_RATE);
-    // setupOLED(setupWiFi());
-    setupPulseSensor();
+    setupOLED();
+    setupWiFi();
+    setupSensors();
+    Serial.println(CSV_HEADER); 
 }
 
 
 void loop()
 {
-    readPulse();
-    float payload[5] = {25.5, 72.0, 450.5, 37.7749, -122.4194};
-    // displayData(payload);
-    // send(payload);
+    SensorData data = readSensorsData();
+    
+    // printSensorData(data);
+    printCSV(data);
+
+    displayData(data);
+    send(data);
 }

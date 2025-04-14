@@ -1,0 +1,2 @@
+void setUpGSRsensor();
+int readGSR();

@@ -1,2 +1,2 @@
-void setupOLED(bool);
-void displayData(float[5]);
+void setupOLED();
+void displayData(const SensorData &data);

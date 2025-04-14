@@ -2,6 +2,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include "data.h"
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32 
@@ -55,6 +56,11 @@ void drawLayout(bool wifiConnected) {
     // Draw "Auticare" on top-left
     display.setCursor(0, 0);
     display.print("Auticare");
+
+    display.setCursor(20, 10);
+    display.print("Connecting to");
+    display.setCursor(35, 20);
+    display.print(" network...");
     
     // Draw WiFi icon and status dot on top-right
     int wifiX = SCREEN_WIDTH - 20;
@@ -65,24 +71,50 @@ void drawLayout(bool wifiConnected) {
     display.display();  // Update OLED
 }
 
-void setupOLED(bool wifiConnected){
+void setupOLED(){
     if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
         Serial.println(F("SSD1306 allocation failed"));
         for(;;); // Don't proceed, loop forever on fail
     }
     display.display();
     delay(2000); // Pause for x seconds
-    drawLayout(wifiConnected);
+    drawLayout(true);
 }
 
-void displayData(float payload[5]){
-    display.setCursor(0, 10);
-    display.print(varNames[0]); display.print(":"); display.print(payload[0], 1);
-    display.print(" ");
-    display.print(varNames[1]); display.print(":"); display.print(payload[1], 1);
-    
-    display.setCursor(0, 20);
-    display.print(varNames[2]); display.print(":"); display.print(payload[2], 1);
-    
+void displayData(const SensorData &data) {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+
+    if (data.noFinger) {
+        // No finger detected: Show warning message
+        display.setCursor(0, 0);
+        display.setTextSize(1);
+        display.println("  No contact detected");
+        display.setCursor(0, 16);
+        display.println(" Please wear device");
+    } else {
+        // Finger detected: Show formatted data
+        display.setCursor(0, 0);
+        display.println("Auticare");
+        display.drawLine(0, 10, 128, 10, SSD1306_WHITE);  // Horizontal line separator
+
+        // Row 1: Temp and HR
+        display.setCursor(0, 12);
+        display.print("Temp: "); 
+        display.print(data.temperature, 1); 
+        display.print(" C");
+        
+        display.setCursor(64, 12);
+        display.print("HR: "); 
+        display.print(data.BPM, 1); 
+        display.print(" BPM");
+
+        // Row 2: GSR (full width)
+        display.setCursor(0, 22);
+        display.print("GSR: "); 
+        display.print(data.GSR);
+    }
+
     display.display();
 }
