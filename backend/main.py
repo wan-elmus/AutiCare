@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from routes import auth, history, predict, sensors, users, notifications
+from routes_api import auth, history, predict, sensors, users, notifications
 from tasks import scheduler_startup
 from utils.websocket_manager import websocket_manager
 import logging

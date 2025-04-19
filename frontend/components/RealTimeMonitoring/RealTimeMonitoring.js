@@ -25,7 +25,6 @@ export default function RealTimeMonitoring({ isExpanded = false, onExpand }) {
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
   }
 
-  // Handling WebSocket messages
   useEffect(() => {
     if (!user?.id) {
       console.log('No user ID, waiting...');

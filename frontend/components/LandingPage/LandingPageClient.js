@@ -1,16 +1,19 @@
 'use client'
+
 import { useState, useEffect, useContext } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTheme } from '@/context/ThemeContext'
-import { UserContext } from '@/context/UserContext'
-import { useWebSocket } from '@/context/WebSocketContext'
+import { useTheme } from '../../context/ThemeContext'
+import { UserContext } from '../../context/UserContext'
+import { useWebSocket } from '../../context/WebSocketContext'
 import { FaHeartbeat, FaUserCircle, FaChartLine, FaArrowRight, FaTimes } from 'react-icons/fa'
 import RealTimeMonitoring from '../RealTimeMonitoring/RealTimeMonitoring'
 import ChildProfile from '../ChildProfile/ChildProfile'
 import TrendGraphs from '../TrendGraphs/TrendGraphs'
 import Navbar from '../Navbar/Navbar'
 import Footer from '../Footer/Footer'
-import { X, AlertCircle } from 'lucide-react'
+import BottomMenu from '../Navbar/BottomMenu'
+import dynamic from 'next/dynamic'
+const Plot = dynamic(() => import('../UI/Plot'), {ssr: false,})
 
 export default function LandingPageClient({ initialUserProfile }) {
   const { isDark } = useTheme()
@@ -22,7 +25,11 @@ export default function LandingPageClient({ initialUserProfile }) {
   const [activeComponent, setActiveComponent] = useState(null)
   const [notificationError, setNotificationError] = useState('')
 
-  // initial user profile from server-side fetch
+    let Origin = useState([36.825474,-1.285374]);
+    let Destinations = useState([]);
+    let Mode = useState('driving');
+
+
   useEffect(() => {
     if (initialUserProfile && !user) {
       setUser(initialUserProfile)
@@ -30,7 +37,18 @@ export default function LandingPageClient({ initialUserProfile }) {
     }
   }, [initialUserProfile, user, setUser])
 
-  // user profile
+  const generatePopupData = (coords) => {
+    coords = JSON.parse(coords);
+    return {
+        latitude: coords[1],
+        longitude: coords[0],
+        order: '#AZ3XO90P',
+        name: 'Jane Doe',
+        address: 'Railside Appartments, 7D'
+    }
+}
+
+
   useEffect(() => {
     async function fetchUserProfile() {
       if (!user){
@@ -52,7 +70,7 @@ export default function LandingPageClient({ initialUserProfile }) {
     fetchUserProfile()
   }, [user, setUser])
 
-  // Fetch notifications
+  // notifications
   useEffect(() => {
     async function fetchNotifications() {
       try {
@@ -74,7 +92,7 @@ export default function LandingPageClient({ initialUserProfile }) {
     fetchNotifications()
   }, [])
 
-    // Handle WebSocket messages for notifications
+    // WebSocket messages for notifications
     useEffect(() => {
       const latestMessage = wsMessages[wsMessages.length - 1];
       if (!latestMessage) return;
@@ -203,8 +221,11 @@ export default function LandingPageClient({ initialUserProfile }) {
           </div>
         </main>
 
+        <div className="h-[70vh] md:w-3/5 2xl:w-2/3 md:mx-auto rounded-xl border-2 relative">
+            <Plot Origin={Origin} Destinations={Destinations} Mode={Mode} query={generatePopupData}/>
+        </div>
         {/* Notifications Panel */}
-        <aside className="lg:w-1/3 mt-8 lg:mt-0 lg:ml-4">
+        {/* <aside className="lg:w-1/3 mt-8 lg:mt-0 lg:ml-4">
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -212,7 +233,7 @@ export default function LandingPageClient({ initialUserProfile }) {
             className={`p-6 rounded-xl shadow-xl ${
               isDark ? 'bg-gray-800 border-teal-700' : 'bg-teal-50 border-teal-200'
             } border h-[calc(100vh-4rem)] overflow-y-auto`}
-          >
+        >
             <div className="flex justify-between items-center mb-4">
             <h2 className={`text-2xl font-semibold mb-4 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
               Notifications
@@ -289,7 +310,7 @@ export default function LandingPageClient({ initialUserProfile }) {
               </AnimatePresence>
             </div>
           </motion.div>
-        </aside>
+        </aside> */}
       </div>
 
       {/* Sidebar */}
@@ -300,7 +321,7 @@ export default function LandingPageClient({ initialUserProfile }) {
             animate="visible"
             exit="exit"
             variants={sidebarVariants}
-            className={`fixed top-0 left-0 h-full w-full sm:w-96 z-50 ${
+            className={`fixed top-0 left-0 h-full w-full sm:w-96 z-40 ${
               isDark ? 'bg-gradient-to-r from-gray-900 to-teal-950' : 'bg-gradient-to-r from-teal-50 to-blue-50'
             } shadow-2xl`}
           >
@@ -323,6 +344,7 @@ export default function LandingPageClient({ initialUserProfile }) {
       </AnimatePresence>
 
       <Footer />
+      <BottomMenu/>
     </div>
   )
 }

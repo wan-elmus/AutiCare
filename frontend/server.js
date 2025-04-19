@@ -19,19 +19,16 @@ app.prepare().then(() => {
     const { pathname, query } = parse(request.url, true);
     console.log(`WebSocket upgrade requested for: ${pathname}`);
     if (pathname === '/ws/sensor/data') {
-        // Test
-        const token = query.token || request.headers.cookie?.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-        if (!token) {
-            console.error('No token provided for WebSocket connection');
-            socket.destroy();
-            return;
-        }
-      const wsProxy = new WebSocket('ws://localhost:8000/sensor/ws/sensor/data', {
+      const user_id = query.user_id;
+      if (!user_id) {
+        console.error('No user_id provided for WebSocket connection');
+        socket.destroy();
+        return;
+      }
+      const wsProxy = new WebSocket(`ws://localhost:8000/sensor/ws/sensor/data?user_id=${user_id}`, {
         headers: request.headers,
       });
-    // const wsProxy = new WebSocket(`ws://localhost:8000/sensor/ws/sensor/data?token=${encodeURIComponent(token)}`, {
-    //     headers: { ...request.headers, 'Cookie': `token=${token}` },
-    //   });
+
       wss.handleUpgrade(request, socket, head, (ws) => {
         wsProxy.on('open', () => {
           console.log('WebSocket proxy connected to backend');

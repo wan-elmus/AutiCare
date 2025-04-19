@@ -1,3 +1,5 @@
+'use client'
+
 // // app/page.js (Server Component)
 // import LandingPageClient from '../components/LandingPage/LandingPageClient'
 // import { redirect } from 'next/navigation'

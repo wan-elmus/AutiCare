@@ -42,7 +42,8 @@ async def get_current_user_details(
         "id": current_user.id,
         "first_name": current_user.first_name,
         "last_name": current_user.last_name,
-        "email": current_user.email
+        "email": current_user.email,
+        'access_token':token
     }
 
 @router.put("/users/me")
@@ -97,11 +98,11 @@ async def update_user(
 # logging.basicConfig(level=logging.INFO)
 # logger = logging.getLogger("users")
 
-# class UserCreate(BaseModel):
-#     first_name: str
-#     last_name: str
-#     email: str
-#     password: str
+class UserCreate(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    password: str
 
 # class UserUpdate(BaseModel):
 #     first_name: str = None
@@ -113,21 +114,21 @@ async def update_user(
 #     child_bio: str = None
 #     child_avatar: str = None
 
-# @router.post("/users")
-# async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
-#     existing_user = await db.execute(select(User).where(User.email == user_data.email))
-#     if existing_user.scalar():
-#         raise HTTPException(status_code=400, detail="Email already registered")
+@router.post("/users/me")
+async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+    existing_user = await db.execute(select(User).where(User.email == user_data.email))
+    if existing_user.scalar():
+        raise HTTPException(status_code=400, detail="Email already registered")
     
-#     new_user = User(
-#         first_name=user_data.first_name,
-#         last_name=user_data.last_name,
-#         email=user_data.email,
-#         hashed_password=pwd_context.hash(user_data.password)
-#     )
-#     db.add(new_user)
-#     await db.commit()
-#     return {"message": "User created successfully", "id": new_user.id}
+    new_user = User(
+        first_name=user_data.first_name,
+        last_name=user_data.last_name,
+        email=user_data.email,
+        hashed_password=pwd_context.hash(user_data.password)
+    )
+    db.add(new_user)
+    await db.commit()
+    return {"message": "User created successfully", "id": new_user.id}
 
 # @router.get("/users/me")
 # async def get_current_user_details(db: AsyncSession = Depends(get_db)):

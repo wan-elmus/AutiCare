@@ -97,10 +97,11 @@ async def login(
         content={
             "message": "Login successful",
             "user": {
-            "id": user.id,
-            "email": user.email,
-            "first_name": user.first_name,
-            "last_name": user.last_name
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "access_token": access_token, 
             }, 
             "access_token": access_token, 
             "refresh_token": refresh_token
@@ -120,7 +121,7 @@ async def login(
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
-        max_age=7 * 24 * 60 * 60,  # 7 days
+        max_age=7 * 24 * 60 * 60, 
         httponly=True,
         secure=False,
         samesite="lax",

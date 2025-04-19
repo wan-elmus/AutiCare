@@ -30,7 +30,8 @@ export default function LoginPage() {
     const fetchConfig = async () => {
       if (!tokenExpiryMinutes) {
         try {
-          const response = await fetch('http://localhost:8000/auth/config', { credentials: 'include' });
+          const response = await fetch('http://localhost:8000/auth/config', 
+            { credentials: 'include' });
           const data = await response.json();
           setTokenExpiryMinutes(data.access_token_expire_minutes);
         } catch (err) {
@@ -81,14 +82,15 @@ export default function LoginPage() {
         if (!response.ok) {      
         throw new Error(data.detail || 'Invalid credentials')
       }
-      console.log('Login response data:', JSON.stringify(data, null, 2)); // Detailed log
+      console.log('Login response data:', JSON.stringify(data, null, 2));
       const userData = data.user;
       if (!userData || !userData.id) {
         throw new Error('No user data or ID in response');
       }
+      console.log(userData)
       setUser(userData)
       await new Promise((resolve) => setTimeout(resolve, 500))
-      router.push('/') // LandingPage.js (app/page.js)
+      router.push('/')
     } catch (err) {
       setError(err.message)
     } finally {
