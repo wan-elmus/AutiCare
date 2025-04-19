@@ -76,12 +76,13 @@ SensorData readSensorsData()
         }
     }
 
-    data.GSR = readGSR();
+    int GSRvalue = readGSR();
+    data.GSR = GSRvalue;
     data.temperature = temperature;
     data.IR = irValue;
     data.BPM = beatsPerMinute;
     data.avgBPM = beatAvg;
-    data.noFinger = irValue < 50000;
+    data.noFinger = irValue < 50000 && (GSRvalue < 50);
 
     return data;
 }
