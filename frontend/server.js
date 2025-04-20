@@ -32,7 +32,7 @@ app.prepare().then(() => {
         socket.destroy();
         return;
       }
-      const wsProxy = new WebSocket(`ws://localhost:8000/sensor/ws/sensor/data?user_id=${user_id}`, {
+      const wsProxy = new WebSocket(`ws://195.7.7.15:8002/sensor/ws/sensor/data?user_id=${user_id}`, {
         headers: request.headers,
       });
 

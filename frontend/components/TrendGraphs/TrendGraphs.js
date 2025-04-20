@@ -26,7 +26,7 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
     const fetchUserDetails = async () => {
       if (!user) {
         try {
-          const response = await fetch('http://localhost:8000/users/me', {
+          const response = await fetch('http://195.7.7.15:8002/users/me', {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -55,7 +55,7 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
       try {
         const days = timeRange === 'Last Hour' ? 0.0417 : timeRange === 'Today' ? 1 : 7
         const response = await fetch(
-          `http://localhost:8000/history/processed_data?days=${days}`,
+          `http://195.7.7.15:8002/history/processed_data?days=${days}`,
           {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },

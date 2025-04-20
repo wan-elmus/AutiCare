@@ -27,7 +27,7 @@ export default function SignupPage() {
     setIsLoading(true)
     setError('')
     try {
-      const response = await fetch('http://localhost:8000/users/me', {
+      const response = await fetch('http://195.7.7.15:8002/users/me', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

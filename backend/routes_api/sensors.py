@@ -1,5 +1,5 @@
 from fastapi import APIRouter, WebSocket, HTTPException, status, Query, Depends
-from starlette.websockets import WebSocketState
+from starlette.websockets import WebSocketState, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.db import get_db
 from database.models import SensorData, Prediction

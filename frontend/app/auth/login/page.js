@@ -30,7 +30,7 @@ export default function LoginPage() {
     const fetchConfig = async () => {
       if (!tokenExpiryMinutes) {
         try {
-          const response = await fetch('http://localhost:8000/auth/config', 
+          const response = await fetch('http://195.7.7.15:8002/auth/config', 
             { credentials: 'include' });
           const data = await response.json();
           setTokenExpiryMinutes(data.access_token_expire_minutes);
@@ -46,7 +46,7 @@ export default function LoginPage() {
   useEffect(() => {
     const refreshToken = async () => {
       try {
-        const response = await fetch('http://localhost:8000/auth/refresh', {
+        const response = await fetch('http://195.7.7.15:8002/auth/refresh', {
           method: 'POST',
           credentials: 'include',
         });
@@ -70,7 +70,7 @@ export default function LoginPage() {
     setIsLoading(true)
     setError('')
     try {
-      const response = await fetch('http://localhost:8000/auth/login', {
+      const response = await fetch('http://195.7.7.15:8002/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

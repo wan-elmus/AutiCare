@@ -5,15 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '../../context/ThemeContext'
 import { UserContext } from '../../context/UserContext'
 import { useWebSocket } from '../../context/WebSocketContext'
-import { FaHeartbeat, FaUserCircle, FaChartLine, FaArrowRight, FaTimes } from 'react-icons/fa'
+import { FaHeartbeat, FaUserCircle, FaChartLine, FaTimes } from 'react-icons/fa'
 import RealTimeMonitoring from '../RealTimeMonitoring/RealTimeMonitoring'
 import ChildProfile from '../ChildProfile/ChildProfile'
 import TrendGraphs from '../TrendGraphs/TrendGraphs'
 import Navbar from '../Navbar/Navbar'
-import Footer from '../Footer/Footer'
 import BottomMenu from '../Navbar/BottomMenu'
 import dynamic from 'next/dynamic'
-const Plot = dynamic(() => import('../UI/Plot'), {ssr: false,})
+const Plot = dynamic(() => import('../UI/Plot'), { ssr: false })
 
 export default function LandingPageClient({ initialUserProfile }) {
   const { isDark } = useTheme()
@@ -21,14 +20,11 @@ export default function LandingPageClient({ initialUserProfile }) {
   const [userProfile, setUserProfile] = useState(initialUserProfile)
   const { wsMessages } = useWebSocket()
   const [notifications, setNotifications] = useState([])
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [activeComponent, setActiveComponent] = useState(null)
   const [notificationError, setNotificationError] = useState('')
 
-    let Origin = useState([36.825474,-1.285374]);
-    let Destinations = useState([]);
-    let Mode = useState('driving');
-
+  const [origin, setOrigin] = useState([36.825474, -1.285374])
+  const [destinations, setDestinations] = useState([])
+  const [mode, setMode] = useState('driving')
 
   useEffect(() => {
     if (initialUserProfile && !user) {
@@ -38,30 +34,40 @@ export default function LandingPageClient({ initialUserProfile }) {
   }, [initialUserProfile, user, setUser])
 
   const generatePopupData = (coords) => {
-    coords = JSON.parse(coords);
-    return {
-        latitude: coords[1],
-        longitude: coords[0],
+    try {
+      const parsedCoords = typeof coords === 'string' ? JSON.parse(coords) : coords
+      return {
+        latitude: parsedCoords[1],
+        longitude: parsedCoords[0],
         order: '#AZ3XO90P',
         name: 'Jane Doe',
-        address: 'Railside Appartments, 7D'
+        address: 'Railside Appartments, 7D',
+      }
+    } catch (error) {
+      console.error('Error parsing coords:', error)
+      return {
+        latitude: -1.285374,
+        longitude: 36.825474,
+        order: '#AZ3XO90P',
+        name: 'Unknown',
+        address: 'Unknown',
+      }
     }
-}
-
+  }
 
   useEffect(() => {
     async function fetchUserProfile() {
-      if (!user){
+      if (!user) {
         try {
-          const response = await fetch('http://localhost:8000/users/me', {
+          const response = await fetch('http://195.7.7.15:8002/users/me', {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
           })
-        if (!response.ok) throw new Error(`Failed to fetch user profile: ${response.status}`)
-        const data = await response.json()
-        setUser(data)
-        setUserProfile(data)
+          if (!response.ok) throw new Error(`Failed to fetch user profile: ${response.status}`)
+          const data = await response.json()
+          setUser(data)
+          setUserProfile(data)
         } catch (error) {
           console.log('Error fetching user profile:', error)
         }
@@ -70,11 +76,10 @@ export default function LandingPageClient({ initialUserProfile }) {
     fetchUserProfile()
   }, [user, setUser])
 
-  // notifications
   useEffect(() => {
     async function fetchNotifications() {
       try {
-        const response = await fetch('http://localhost:8000/api/notifications/', {
+        const response = await fetch('http://195.7.7.15:8002/api/notifications/', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -92,83 +97,49 @@ export default function LandingPageClient({ initialUserProfile }) {
     fetchNotifications()
   }, [])
 
-    // WebSocket messages for notifications
-    useEffect(() => {
-      const latestMessage = wsMessages[wsMessages.length - 1];
-      if (!latestMessage) return;
-  
-      if (latestMessage.type === 'dismiss_notification') {
-        setNotifications((prev) => prev.filter((n) => n.id !== latestMessage.id));
-      } else if (latestMessage.type === 'dismiss_all_notifications') {
-        setNotifications([]);
-      }
-    }, [wsMessages]);
-  
-    const dismissNotification = async (id) => {
-      try {
-        const response = await fetch(`http://localhost:8000/api/notifications/${id}/dismiss`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        });
-        if (!response.ok) throw new Error('Failed to dismiss notification');
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
-      } catch (error) {
-        console.log('Error dismissing notification:', error);
-      }
-    };
-  
-    const dismissAllNotifications = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/api/notifications/dismiss-all', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        });
-        if (!response.ok) throw new Error('Failed to dismiss all notifications');
-        setNotifications([]);
-      } catch (error) {
-        console.error('Error dismissing all notifications:', error);
-      }
+  useEffect(() => {
+    const latestMessage = wsMessages[wsMessages.length - 1]
+    if (!latestMessage) return
+
+    if (latestMessage.type === 'dismiss_notification') {
+      setNotifications((prev) => prev.filter((n) => n.id !== latestMessage.id))
+    } else if (latestMessage.type === 'dismiss_all_notifications') {
+      setNotifications([])
     }
+  }, [wsMessages])
 
-  const cardVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
-    visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: 'easeOut' } },
+  const dismissNotification = async (id) => {
+    try {
+      const response = await fetch(`http://195.7.7.15:8002/api/notifications/${id}/dismiss`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Failed to dismiss notification')
+      setNotifications((prev) => prev.filter((n) => n.id !== id))
+    } catch (error) {
+      console.log('Error dismissing notification:', error)
+    }
   }
 
-  const sidebarVariants = {
-    hidden: { x: '-100%' },
-    visible: { x: 0, transition: { duration: 0.4, ease: 'easeInOut' } },
-    exit: { x: '-100%', transition: { duration: 0.4, ease: 'easeInOut' } },
+  const dismissAllNotifications = async () => {
+    try {
+      const response = await fetch('http://195.7.7.15:8002/api/notifications/dismiss-all', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Failed to dismiss all notifications')
+      setNotifications([])
+    } catch (error) {
+      console.error('Error dismissing all notifications:', error)
+    }
   }
 
-  const notificationVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.4 } },
-    exit: { opacity: 0, x: 20, transition: { duration: 0.3 } },
+  const componentVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
   }
-
-  const cards = [
-    {
-      title: 'Real-Time Monitoring',
-      icon: <FaHeartbeat className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />,
-      summary: 'Monitor live stress indicators',
-      component: <RealTimeMonitoring isExpanded={true} onExpand={() => setSidebarOpen(false)} />,
-    },
-    {
-      title: 'Child Profile',
-      icon: <FaUserCircle className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />,
-      summary: userProfile?.child_name ? `${userProfile.child_name}` : 'Profile loading...',
-      component: <ChildProfile isExpanded={true} initialData={userProfile} onExpand={() => setSidebarOpen(false)} />,
-    },
-    {
-      title: 'Stress Trends',
-      icon: <FaChartLine className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />,
-      summary: 'View recent trends over time',
-      component: <TrendGraphs isExpanded={true} onExpand={() => setSidebarOpen(false)} />,
-    },
-  ]
 
   return (
     <div
@@ -177,68 +148,104 @@ export default function LandingPageClient({ initialUserProfile }) {
       }`}
     >
       <Navbar userProfile={userProfile} />
-      <div className="flex flex-col lg:flex-row pt-16 px-4 sm:px-6 lg:px-8">
-        <main className="flex-1 max-w-4xl mx-auto lg:mr-4">
-          <motion.h1
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className={`text-3xl sm:text-4xl font-bold text-center mb-8 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}
-          >
-            Welcome to AutiCare
-          </motion.h1>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {cards.map((card, index) => (
-              <motion.div
-                key={index}
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.3 }}
-                onClick={() => {
-                  setActiveComponent(card.component)
-                  setSidebarOpen(true)
-                }}
-                className={`p-4 rounded-lg shadow-md cursor-pointer ${
-                  isDark ? 'bg-gray-800 border-teal-700' : 'bg-teal-50 border-teal-200'
-                } border`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    {card.icon}
-                    <div>
-                      <h3 className={`text-lg font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-                        {card.title}
-                      </h3>
-                      <p className={`text-sm ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>{card.summary}</p>
-                    </div>
-                  </div>
-                  <FaArrowRight className={`h-5 w-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </main>
-
-        <div className="h-[70vh] md:w-3/5 2xl:w-2/3 md:mx-auto rounded-xl border-2 relative">
-            <Plot Origin={Origin} Destinations={Destinations} Mode={Mode} query={generatePopupData}/>
-        </div>
-        {/* Notifications Panel */}
-        {/* <aside className="lg:w-1/3 mt-8 lg:mt-0 lg:ml-4">
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className={`p-6 rounded-xl shadow-xl ${
-              isDark ? 'bg-gray-800 border-teal-700' : 'bg-teal-50 border-teal-200'
-            } border h-[calc(100vh-4rem)] overflow-y-auto`}
+      <div className="pt-16 px-4 sm:px-6 lg:px-8 pb-8">
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className={`text-3xl sm:text-4xl font-bold text-center mb-8 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}
         >
+          AutiCare Dashboard
+        </motion.h1>
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Real-Time Monitoring */}
+          <motion.section
+            variants={componentVariants}
+            initial="hidden"
+            animate="visible"
+            className={`rounded-xl shadow-lg p-6 ${
+              isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
+            } border`}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <FaHeartbeat className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+                Real-Time Monitoring
+              </h2>
+            </div>
+            <RealTimeMonitoring isExpanded={true} />
+          </motion.section>
+
+          {/* Child Profile */}
+          <motion.section
+            variants={componentVariants}
+            initial="hidden"
+            animate="visible"
+            className={`rounded-xl shadow-lg p-6 ${
+              isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
+            } border`}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <FaUserCircle className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+                Child Profile
+              </h2>
+            </div>
+            <ChildProfile isExpanded={true} initialData={userProfile} />
+          </motion.section>
+
+          {/* Stress Trends */}
+          <motion.section
+            variants={componentVariants}
+            initial="hidden"
+            animate="visible"
+            className={`rounded-xl shadow-lg p-6 ${
+              isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
+            } border`}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <FaChartLine className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+                Stress Trends
+              </h2>
+            </div>
+            <TrendGraphs isExpanded={true} />
+          </motion.section>
+
+          {/* Map */}
+          <motion.section
+            variants={componentVariants}
+            initial="hidden"
+            animate="visible"
+            className={`rounded-xl shadow-lg p-6 ${
+              isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
+            } border`}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <FaChartLine className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+                Location Tracking
+              </h2>
+            </div>
+            <div className="h-[500px] rounded-lg overflow-hidden">
+              <Plot Origin={origin} Destinations={destinations} Mode={mode} query={generatePopupData} />
+            </div>
+          </motion.section>
+
+          {/* Notifications */}
+          <motion.aside
+            variants={componentVariants}
+            initial="hidden"
+            animate="visible"
+            className={`rounded-xl shadow-lg p-6 ${
+              isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
+            } border max-h-[400px] overflow-y-auto`}
+          >
             <div className="flex justify-between items-center mb-4">
-            <h2 className={`text-2xl font-semibold mb-4 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-              Notifications
-            </h2>
-            {notifications.length > 0 && (
+              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+                Notifications
+              </h2>
+              {notifications.length > 0 && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -260,10 +267,9 @@ export default function LandingPageClient({ initialUserProfile }) {
                   notifications.map((notification) => (
                     <motion.div
                       key={notification.id}
-                      variants={notificationVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit="exit"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
                       transition={{ duration: 0.4 }}
                       className={`relative p-4 rounded-lg shadow-md border ${
                         notification.level === 'high'
@@ -279,10 +285,10 @@ export default function LandingPageClient({ initialUserProfile }) {
                         onClick={() => dismissNotification(notification.id)}
                         className="absolute top-2 right-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                       >
-                        <X className="h-4 w-4" />
+                        <FaTimes className="h-4 w-4" />
                       </motion.button>
                       <div className="flex items-start gap-3">
-                        <AlertCircle
+                        <div
                           className={`h-5 w-5 ${
                             notification.level === 'high'
                               ? 'text-red-700'
@@ -290,7 +296,10 @@ export default function LandingPageClient({ initialUserProfile }) {
                               ? 'text-yellow-700'
                               : 'text-green-700'
                           }`}
-                        />
+                        >
+                          {/* Placeholder for AlertCircle icon */}
+                          ⚠️
+                        </div>
                         <div>
                           <p className={`text-sm font-medium ${isDark ? 'text-gray-900' : 'text-gray-800'}`}>
                             {notification.message}
@@ -309,42 +318,10 @@ export default function LandingPageClient({ initialUserProfile }) {
                 )}
               </AnimatePresence>
             </div>
-          </motion.div>
-        </aside> */}
+          </motion.aside>
+        </div>
       </div>
-
-      {/* Sidebar */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            variants={sidebarVariants}
-            className={`fixed top-0 left-0 h-full w-full sm:w-96 z-40 ${
-              isDark ? 'bg-gradient-to-r from-gray-900 to-teal-950' : 'bg-gradient-to-r from-teal-50 to-blue-50'
-            } shadow-2xl`}
-          >
-            <div className="flex justify-between items-center p-4 border-b border-teal-200/50 dark:border-teal-900/50">
-              <h2 className={`text-xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-                Details
-              </h2>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setSidebarOpen(false)}
-                className={`p-2 rounded-full ${isDark ? 'hover:bg-gray-700' : 'hover:bg-teal-100'}`}
-              >
-                <FaTimes className={`h-6 w-6 ${isDark ? 'text-teal-300' : 'text-teal-600'}`} />
-              </motion.button>
-            </div>
-            <div className="p-4 overflow-y-auto h-[calc(100vh-4rem)]">{activeComponent}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* <Footer /> */}
-      <BottomMenu/>
+      <BottomMenu />
     </div>
   )
 }

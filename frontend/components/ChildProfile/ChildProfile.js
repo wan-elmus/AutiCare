@@ -34,7 +34,7 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
     async function fetchNotifications() {
       if (!profileData?.id) return;
       try {
-        const response = await fetch('http://localhost:8000/api/notifications/', {
+        const response = await fetch('http://195.7.7.15:8002/api/notifications/', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -68,7 +68,7 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
 
   const dismissNotification = async (id) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/notifications/${id}/dismiss`, {
+      const response = await fetch(`http://195.7.7.15:8002/api/notifications/${id}/dismiss`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -82,7 +82,7 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
 
   const dismissAllNotifications = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/notifications/dismiss-all', {
+      const response = await fetch('http://195.7.7.15:8002/api/notifications/dismiss-all', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

@@ -32,7 +32,7 @@ export default function Navbar({ userData }) {
 
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:8000/auth/logout', {
+      await fetch('http://195.7.7.15:8002/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
@@ -179,7 +179,7 @@ function ProfileDropdown({ userData, setIsProfileOpen, isDark }) {
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:8000/users/me', {
+      const response = await fetch('http://195.7.7.15:8002/users/me', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -203,7 +203,7 @@ function ProfileDropdown({ userData, setIsProfileOpen, isDark }) {
 
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:8000/auth/logout', {
+      await fetch('http://195.7.7.15:8002/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
