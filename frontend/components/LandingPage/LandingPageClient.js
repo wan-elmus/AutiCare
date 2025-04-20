@@ -5,9 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '../../context/ThemeContext'
 import { UserContext } from '../../context/UserContext'
 import { useWebSocket } from '../../context/WebSocketContext'
-import { FaHeartbeat, FaUserCircle, FaChartLine, FaTimes } from 'react-icons/fa'
+import { FaHeartbeat, FaChartLine, FaArrowDown, FaArrowUp } from 'react-icons/fa'
 import RealTimeMonitoring from '../RealTimeMonitoring/RealTimeMonitoring'
-import ChildProfile from '../ChildProfile/ChildProfile'
 import TrendGraphs from '../TrendGraphs/TrendGraphs'
 import Navbar from '../Navbar/Navbar'
 import BottomMenu from '../Navbar/BottomMenu'
@@ -21,6 +20,9 @@ export default function LandingPageClient({ initialUserProfile }) {
   const { wsMessages } = useWebSocket()
   const [notifications, setNotifications] = useState([])
   const [notificationError, setNotificationError] = useState('')
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [showTrends, setShowTrends] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
 
   const [origin, setOrigin] = useState([36.825474, -1.285374])
   const [destinations, setDestinations] = useState([])
@@ -98,6 +100,35 @@ export default function LandingPageClient({ initialUserProfile }) {
   }, [])
 
   useEffect(() => {
+    async function fetchSensorData() {
+      try {
+        const response = await fetch('http://195.7.7.15:8002/sensor/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ user_id: user?.id }),
+        })
+        if (!response.ok) {
+          console.error('Sensor data fetch failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+          })
+          throw new Error(`Failed to fetch sensor data: ${response.status}`)
+        }
+        const data = await response.json()
+        const validCoords = data
+          .filter((d) => d.longitude && d.latitude)
+          .map((d) => [d.longitude, d.latitude])
+        setDestinations(validCoords)
+      } catch (error) {
+        console.error('Error fetching sensor data:', error)
+      }
+    }
+    if (user?.id) fetchSensorData()
+  }, [user?.id])
+
+  useEffect(() => {
     const latestMessage = wsMessages[wsMessages.length - 1]
     if (!latestMessage) return
 
@@ -136,10 +167,26 @@ export default function LandingPageClient({ initialUserProfile }) {
     }
   }
 
+  const toggleNotifications = () => {
+    setShowNotifications((prev) => !prev)
+  }
+
+  const toggleTrends = () => {
+    setShowTrends((prev) => !prev)
+  }
+
   const componentVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
   }
+
+  useEffect(() => {
+    if (userProfile?.first_name) {
+      setShowWelcome(true)
+      const timer = setTimeout(() => setShowWelcome(false), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [userProfile])
 
   return (
     <div
@@ -149,14 +196,34 @@ export default function LandingPageClient({ initialUserProfile }) {
     >
       <Navbar userProfile={userProfile} />
       <div className="pt-16 px-4 sm:px-6 lg:px-8 pb-8">
-        <motion.h1
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className={`text-3xl sm:text-4xl font-bold text-center mb-8 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}
-        >
-          AutiCare Dashboard
-        </motion.h1>
+        <div className="relative h-16 mb-8">
+          <motion.h1
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className={`text-xl sm:text-4xl font-bold text-center ${isDark ? 'text-teal-300' : 'text-teal-700'}`}
+          >
+            {/* Welcome, {userProfile?.first_name || 'User'}! */}
+            Welcome to AutiCare
+          </motion.h1>
+          
+          <AnimatePresence>
+            {showWelcome && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.4 }}
+                className={`absolute inset-x-0 top-0 text-center text-sm ${
+                  isDark ? 'text-teal-200' : 'text-teal-600'
+                }`}
+              >
+                We're glad to see you back
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Real-Time Monitoring */}
           <motion.section
@@ -173,25 +240,7 @@ export default function LandingPageClient({ initialUserProfile }) {
                 Real-Time Monitoring
               </h2>
             </div>
-            <RealTimeMonitoring isExpanded={true} />
-          </motion.section>
-
-          {/* Child Profile */}
-          <motion.section
-            variants={componentVariants}
-            initial="hidden"
-            animate="visible"
-            className={`rounded-xl shadow-lg p-6 ${
-              isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
-            } border`}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <FaUserCircle className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
-              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-                Child Profile
-              </h2>
-            </div>
-            <ChildProfile isExpanded={true} initialData={userProfile} />
+            <RealTimeMonitoring />
           </motion.section>
 
           {/* Stress Trends */}
@@ -203,13 +252,36 @@ export default function LandingPageClient({ initialUserProfile }) {
               isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
             } border`}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <FaChartLine className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
-              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-                Stress Trends
-              </h2>
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-3">
+                <FaChartLine className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+                <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+                  Stress Trends
+                </h2>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={toggleTrends}
+                className={`p-2 rounded-full ${
+                  isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'
+                }`}
+              >
+                {showTrends ? <FaArrowUp className="h-5 w-5" /> : <FaArrowDown className="h-5 w-5" />}
+              </motion.button>
             </div>
-            <TrendGraphs isExpanded={true} />
+            <AnimatePresence>
+              {showTrends && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                >
+                  <TrendGraphs />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.section>
 
           {/* Map */}
@@ -231,97 +303,16 @@ export default function LandingPageClient({ initialUserProfile }) {
               <Plot Origin={origin} Destinations={destinations} Mode={mode} query={generatePopupData} />
             </div>
           </motion.section>
-
-          {/* Notifications */}
-          <motion.aside
-            variants={componentVariants}
-            initial="hidden"
-            animate="visible"
-            className={`rounded-xl shadow-lg p-6 ${
-              isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
-            } border max-h-[400px] overflow-y-auto`}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-                Notifications
-              </h2>
-              {notifications.length > 0 && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={dismissAllNotifications}
-                  className={`text-sm px-3 py-1 rounded-md ${
-                    isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'
-                  }`}
-                >
-                  Dismiss All
-                </motion.button>
-              )}
-            </div>
-            {notificationError && (
-              <p className={`text-sm text-red-500 mb-4`}>{notificationError}</p>
-            )}
-            <div className="space-y-4">
-              <AnimatePresence>
-                {notifications.length > 0 ? (
-                  notifications.map((notification) => (
-                    <motion.div
-                      key={notification.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ duration: 0.4 }}
-                      className={`relative p-4 rounded-lg shadow-md border ${
-                        notification.level === 'high'
-                          ? 'bg-gradient-to-r from-red-300 to-red-400 border-red-600'
-                          : notification.level === 'slight'
-                          ? 'bg-gradient-to-r from-yellow-200 to-yellow-300 border-yellow-600'
-                          : 'bg-gradient-to-r from-green-200 to-green-300 border-green-600'
-                      }`}
-                    >
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => dismissNotification(notification.id)}
-                        className="absolute top-2 right-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-                      >
-                        <FaTimes className="h-4 w-4" />
-                      </motion.button>
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`h-5 w-5 ${
-                            notification.level === 'high'
-                              ? 'text-red-700'
-                              : notification.level === 'slight'
-                              ? 'text-yellow-700'
-                              : 'text-green-700'
-                          }`}
-                        >
-                          {/* Placeholder for AlertCircle icon */}
-                          ⚠️
-                        </div>
-                        <div>
-                          <p className={`text-sm font-medium ${isDark ? 'text-gray-900' : 'text-gray-800'}`}>
-                            {notification.message}
-                          </p>
-                          <p className={`text-xs mt-1 ${isDark ? 'text-gray-700' : 'text-gray-600'}`}>
-                            {notification.recommendation}
-                          </p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))
-                ) : (
-                  <p className={`text-sm ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
-                    {notificationError ? 'Failed to load notifications.' : 'No notifications available.'}
-                  </p>
-                )}
-              </AnimatePresence>
-            </div>
-          </motion.aside>
         </div>
       </div>
-      <BottomMenu />
+      <BottomMenu
+        notifications={notifications}
+        notificationError={notificationError}
+        showNotifications={showNotifications}
+        toggleNotifications={toggleNotifications}
+        dismissNotification={dismissNotification}
+        dismissAllNotifications={dismissAllNotifications}
+      />
     </div>
   )
 }

@@ -23,12 +23,11 @@ export default function StressIndicator({ level }) {
       initial="hidden"
       animate="visible"
       variants={fadeInVariants}
-      className={`p-4 rounded-lg shadow-md border ${
+      className={`p-3 rounded-lg shadow-md border ${
         isDark ? 'bg-gradient-to-r border-teal-700' : 'bg-gradient-to-r border-teal-200'
       } ${gradient} text-white w-full`}
     >
-      <p className="text-lg font-semibold tracking-wide">Stress Level</p>
-      <p className="text-2xl font-bold mt-2 capitalize">
+      <p className="text-[0.5rem] font-semibold capitalize">
         {level || 'Unknown'}
       </p>
     </motion.div>

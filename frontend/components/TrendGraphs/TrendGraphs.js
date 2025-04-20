@@ -2,15 +2,14 @@
 import { useState, useEffect, useContext } from 'react'
 import { motion } from 'framer-motion'
 import { useTheme } from '@/context/ThemeContext'
-import { FaChartLine, FaArrowRight } from 'react-icons/fa'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Brush } from 'recharts'
 import { UserContext } from '@/context/UserContext'
-import { useWebSocket } from '@/context/WebSocketContext';
+import { useWebSocket } from '@/context/WebSocketContext'
 
-export default function TrendGraphs({ isExpanded = false, onExpand }) {
+export default function TrendGraphs() {
   const { isDark } = useTheme()
   const { user, setUser } = useContext(UserContext)
-  const { wsMessages } = useWebSocket();
+  const { wsMessages } = useWebSocket()
   const [data, setData] = useState([])
   const [timeRange, setTimeRange] = useState('Today')
   const [isLoading, setIsLoading] = useState(true)
@@ -21,7 +20,7 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
   }
 
-   // Fetch user details on mount
+  // Fetch user details on mount
   useEffect(() => {
     const fetchUserDetails = async () => {
       if (!user) {
@@ -42,16 +41,15 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
     fetchUserDetails()
   }, [user, setUser])
 
-  // historical data
+  // Fetch historical data
   useEffect(() => {
     const fetchHistoricalData = async () => {
       setIsLoading(true)
       if (!user?.id) {
-        console.log('No user ID available, skipping historical data fetch');
-        setIsLoading(false);
-        return;
+        console.log('No user ID available, skipping historical data fetch')
+        setIsLoading(false)
+        return
       }
-      setIsLoading(true);
       try {
         const days = timeRange === 'Last Hour' ? 0.0417 : timeRange === 'Today' ? 1 : 7
         const response = await fetch(
@@ -63,8 +61,8 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
           }
         )
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`Failed to fetch data: ${response.status} - ${JSON.stringify(errorData)}`);
+          const errorData = await response.json()
+          throw new Error(`Failed to fetch data: ${response.status} - ${JSON.stringify(errorData)}`)
         }
         const historicalData = await response.json()
         setData(
@@ -84,14 +82,14 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
       }
     }
     fetchHistoricalData()
-  }, [timeRange, user?.id]);
+  }, [timeRange, user?.id])
 
   // Append real-time data from WebSocket
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) return
 
-    const latestMessage = wsMessages[wsMessages.length - 1];
-    if (!latestMessage) return;
+    const latestMessage = wsMessages[wsMessages.length - 1]
+    if (!latestMessage) return
 
     setData((prevData) => [
       ...prevData,
@@ -102,8 +100,8 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
         gsr: latestMessage.gsr,
         stressLevel: latestMessage.stress_level,
       },
-    ]);
-  }, [user?.id, wsMessages]);
+    ])
+  }, [user?.id, wsMessages])
 
   const graphConfig = [
     {
@@ -138,59 +136,13 @@ export default function TrendGraphs({ isExpanded = false, onExpand }) {
     )
   }
 
-  // Minimal Card View (for Landing Page)
-  if (!isExpanded) {
-    const latestData = data.length > 0 ? data[data.length - 1] : null
-    const trendSummary = latestData
-      ? latestData.stressLevel < 1
-        ? 'Stable'
-        : latestData.stressLevel < 3
-        ? 'Moderate Stress'
-        : 'High Stress'
-      : 'Loading trends...'
-
-    return (
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={fadeInVariants}
-        transition={{ duration: 0.6 }}
-        onClick={onExpand}
-        className={`p-4 rounded-lg shadow-md cursor-pointer ${
-          isDark ? 'bg-gray-800 border-teal-700' : 'bg-teal-50 border-teal-200'
-        } border`}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <FaChartLine className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
-            <div>
-              <h3 className={`text-lg font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-                Stress Trends
-              </h3>
-              <p className={`text-sm ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
-                {trendSummary}
-              </p>
-            </div>
-          </div>
-          <FaArrowRight className={`h-5 w-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
-        </div>
-      </motion.div>
-    )
-  }
-
-  // Full Expanded View (for Sidebar)
   return (
     <motion.div
       initial="hidden"
       animate="visible"
       variants={fadeInVariants}
-      className={`rounded-xl shadow-xl overflow-hidden ${
-        isDark ? 'bg-gradient-to-br from-gray-900 via-teal-950 to-gray-800' : 'bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100'
-      } p-6`}
+      className={`p-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}
     >
-      <h2 className={`text-2xl font-semibold mb-6 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-        Stress Trends
-      </h2>
       <div className="mb-6">
         <select
           value={timeRange}

@@ -1,245 +1,161 @@
 'use client'
-
 import { useState, useEffect, useContext } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTheme } from '../../context/ThemeContext'
-import { UserContext } from '../../context/UserContext'
-import { useWebSocket } from '../../context/WebSocketContext'
-import { FaHeartbeat, FaUserCircle, FaChartLine, FaTimes } from 'react-icons/fa'
-import RealTimeMonitoring from '../RealTimeMonitoring/RealTimeMonitoring'
-import ChildProfile from '../ChildProfile/ChildProfile'
-import TrendGraphs from '../TrendGraphs/TrendGraphs'
-import Navbar from '../Navbar/Navbar'
-import BottomMenu from '../Navbar/BottomMenu'
-import dynamic from 'next/dynamic'
-const Plot = dynamic(() => import('../UI/Plot'), { ssr: false })
+import { useTheme } from '@/context/ThemeContext'
+import { UserContext } from '@/context/UserContext'
+import { FaHome, FaUser, FaBell, FaRobot, FaTimes } from 'react-icons/fa'
 
-export default function LandingPageClient({ initialUserProfile }) {
+export default function BottomMenu({
+  notifications,
+  notificationError,
+  showNotifications,
+  toggleNotifications,
+  dismissNotification,
+  dismissAllNotifications,
+}) {
   const { isDark } = useTheme()
-  const { user, setUser } = useContext(UserContext)
-  const [userProfile, setUserProfile] = useState(initialUserProfile)
-  const { wsMessages } = useWebSocket()
-  const [notifications, setNotifications] = useState([])
-  const [notificationError, setNotificationError] = useState('')
-
-  const [origin, setOrigin] = useState([36.825474, -1.285374])
-  const [destinations, setDestinations] = useState([])
-  const [mode, setMode] = useState('driving')
+  const { user } = useContext(UserContext)
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState('home')
+  const [notificationPermission, setNotificationPermission] = useState('default')
+  const [dosages, setDosages] = useState([])
 
   useEffect(() => {
-    if (initialUserProfile && !user) {
-      setUser(initialUserProfile)
-      setUserProfile(initialUserProfile)
+    if (user) {
+      fetchDosages()
     }
-  }, [initialUserProfile, user, setUser])
+  }, [user])
 
-  const generatePopupData = (coords) => {
+  const fetchDosages = async () => {
     try {
-      const parsedCoords = typeof coords === 'string' ? JSON.parse(coords) : coords
-      return {
-        latitude: parsedCoords[1],
-        longitude: parsedCoords[0],
-        order: '#AZ3XO90P',
-        name: 'Jane Doe',
-        address: 'Railside Appartments, 7D',
+      const res = await fetch('http://195.7.7.15:8002/dosages', {
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setDosages(data)
       }
-    } catch (error) {
-      console.error('Error parsing coords:', error)
-      return {
-        latitude: -1.285374,
-        longitude: 36.825474,
-        order: '#AZ3XO90P',
-        name: 'Unknown',
-        address: 'Unknown',
-      }
+    } catch (err) {
+      console.log('Error fetching dosages:', err)
     }
   }
 
   useEffect(() => {
-    async function fetchUserProfile() {
-      if (!user) {
-        try {
-          const response = await fetch('http://195.7.7.15:8002/users/me', {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-          })
-          if (!response.ok) throw new Error(`Failed to fetch user profile: ${response.status}`)
-          const data = await response.json()
-          setUser(data)
-          setUserProfile(data)
-        } catch (error) {
-          console.log('Error fetching user profile:', error)
-        }
-      }
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+      Notification.requestPermission().then((permission) => {
+        setNotificationPermission(permission)
+      })
+    } else {
+      setNotificationPermission(Notification.permission)
     }
-    fetchUserProfile()
-  }, [user, setUser])
-
-  useEffect(() => {
-    async function fetchNotifications() {
-      try {
-        const response = await fetch('http://195.7.7.15:8002/api/notifications/', {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        })
-        if (!response.ok) throw new Error(`Failed to fetch notifications: ${response.status}`)
-        const data = await response.json()
-        setNotifications(data.notifications || [])
-        setNotificationError('')
-      } catch (error) {
-        console.log('Error fetching notifications:', error.message)
-        setNotifications([])
-        setNotificationError('Unable to load notifications. Please try again later.')
-      }
-    }
-    fetchNotifications()
   }, [])
 
   useEffect(() => {
-    const latestMessage = wsMessages[wsMessages.length - 1]
-    if (!latestMessage) return
+    const checkDosages = () => {
+      const now = new Date()
+      const currentDay = now.toLocaleString('en-US', { weekday: 'long' })
+      const currentTime = now.toTimeString().slice(0, 5) // HH:MM
 
-    if (latestMessage.type === 'dismiss_notification') {
-      setNotifications((prev) => prev.filter((n) => n.id !== latestMessage.id))
-    } else if (latestMessage.type === 'dismiss_all_notifications') {
-      setNotifications([])
-    }
-  }, [wsMessages])
+      dosages.forEach((dosage) => {
+        if (dosage.status !== 'active') return
+        const startDate = new Date(dosage.start_date)
+        if (startDate > now) return
 
-  const dismissNotification = async (id) => {
-    try {
-      const response = await fetch(`http://195.7.7.15:8002/api/notifications/${id}/dismiss`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        let shouldNotify = false
+        if (dosage.frequency === 'daily') {
+          const [doseHour, doseMinute] = dosage.time?.split(':')?.map(Number) || [0, 0]
+          const doseTime = new Date(now)
+          doseTime.setHours(doseHour, doseMinute, 0, 0)
+          const reminderTime = new Date(doseTime.getTime() - 10 * 60 * 1000)
+          const reminderTimeStr = reminderTime.toTimeString().slice(0, 5)
+          if (currentTime === reminderTimeStr) {
+            shouldNotify = true
+          }
+        } else if (dosage.frequency === 'specific_days' && dosage.intervals.includes(currentDay)) {
+          const [doseHour, doseMinute] = dosage.time?.split(':')?.map(Number) || [0, 0]
+          const doseTime = new Date(now)
+          doseTime.setHours(doseHour, doseMinute, 0, 0)
+          const reminderTime = new Date(doseTime.getTime() - 10 * 60 * 1000)
+          const reminderTimeStr = reminderTime.toTimeString().slice(0, 5)
+          if (currentTime === reminderTimeStr) {
+            shouldNotify = true
+          }
+        } else if (dosage.frequency === 'every_x_hours') {
+          const hours = parseInt(dosage.intervals[0]) || 24
+          const start = new Date(dosage.start_date)
+          const elapsed = now.getTime() - start.getTime()
+          const intervalsPassed = Math.floor(elapsed / (hours * 60 * 60 * 1000))
+          const nextDoseTime = new Date(start.getTime() + intervalsPassed * hours * 60 * 60 * 1000)
+          const reminderTime = new Date(nextDoseTime.getTime() - 10 * 60 * 1000)
+          const reminderTimeStr = reminderTime.toTimeString().slice(0, 5)
+          if (currentTime === reminderTimeStr && nextDoseTime <= now) {
+            shouldNotify = true
+          }
+        }
+
+        if (shouldNotify && notificationPermission === 'granted') {
+          new Notification(`Dosage Reminder: ${dosage.medication}`, {
+            body: `Time to administer ${dosage.dosage} of ${dosage.medication} for ${dosage.condition} in 10 minutes.`,
+            icon: '/favicon.ico',
+          })
+        }
       })
-      if (!response.ok) throw new Error('Failed to dismiss notification')
-      setNotifications((prev) => prev.filter((n) => n.id !== id))
-    } catch (error) {
-      console.log('Error dismissing notification:', error)
     }
-  }
 
-  const dismissAllNotifications = async () => {
-    try {
-      const response = await fetch('http://195.7.7.15:8002/api/notifications/dismiss-all', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      })
-      if (!response.ok) throw new Error('Failed to dismiss all notifications')
-      setNotifications([])
-    } catch (error) {
-      console.error('Error dismissing all notifications:', error)
+    const interval = setInterval(checkDosages, 60 * 1000)
+    return () => clearInterval(interval)
+  }, [dosages, notificationPermission])
+
+  const tabs = [
+    { id: 'home', icon: <FaHome className="h-6 w-6" />, label: 'Home', route: '/' },
+    { id: 'account', icon: <FaUser className="h-6 w-6" />, label: 'Account', route: '/profile' },
+    {
+      id: 'notifications',
+      icon: (
+        <div className="relative">
+          <FaBell className="h-6 w-6" />
+          {notifications.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+              {notifications.length}
+            </span>
+          )}
+        </div>
+      ),
+      label: 'Notifications',
+      route: null,
+    },
+    { id: 'ai', icon: <FaRobot className="h-6 w-6" />, label: 'AI', route: '/chatbot' },
+  ]
+
+  const handleTabClick = (tabId, route) => {
+    setActiveTab(tabId)
+    if (tabId === 'notifications') {
+      toggleNotifications()
+    } else {
+      setShowNotifications(false)
+      if (route) {
+        router.push(route)
+      }
     }
-  }
-
-  const componentVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
   }
 
   return (
     <div
-      className={`min-h-screen ${
-        isDark ? 'bg-gradient-to-br from-gray-900 via-teal-950 to-gray-800' : 'bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100'
-      }`}
+      className={`fixed bottom-0 left-0 right-0 z-50 ${
+        isDark ? 'bg-gradient-to-tl from-gray-900 via-teal-950 to-gray-800' : 'bg-white'
+      } shadow-lg`}
     >
-      <Navbar userProfile={userProfile} />
-      <div className="pt-16 px-4 sm:px-6 lg:px-8 pb-8">
-        <motion.h1
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className={`text-3xl sm:text-4xl font-bold text-center mb-8 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}
-        >
-          AutiCare Dashboard
-        </motion.h1>
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* Real-Time Monitoring */}
-          <motion.section
-            variants={componentVariants}
-            initial="hidden"
-            animate="visible"
-            className={`rounded-xl shadow-lg p-6 ${
+      <AnimatePresence>
+        {showNotifications && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className={`absolute bottom-16 left-0 right-0 p-6 max-h-[400px] overflow-y-auto ${
               isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
-            } border`}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <FaHeartbeat className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
-              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-                Real-Time Monitoring
-              </h2>
-            </div>
-            <RealTimeMonitoring isExpanded={true} />
-          </motion.section>
-
-          {/* Child Profile */}
-          <motion.section
-            variants={componentVariants}
-            initial="hidden"
-            animate="visible"
-            className={`rounded-xl shadow-lg p-6 ${
-              isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
-            } border`}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <FaUserCircle className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
-              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-                Child Profile
-              </h2>
-            </div>
-            <ChildProfile isExpanded={true} initialData={userProfile} />
-          </motion.section>
-
-          {/* Stress Trends */}
-          <motion.section
-            variants={componentVariants}
-            initial="hidden"
-            animate="visible"
-            className={`rounded-xl shadow-lg p-6 ${
-              isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
-            } border`}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <FaChartLine className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
-              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-                Stress Trends
-              </h2>
-            </div>
-            <TrendGraphs isExpanded={true} />
-          </motion.section>
-
-          {/* Map */}
-          <motion.section
-            variants={componentVariants}
-            initial="hidden"
-            animate="visible"
-            className={`rounded-xl shadow-lg p-6 ${
-              isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
-            } border`}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <FaChartLine className={`h-8 w-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
-              <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-                Location Tracking
-              </h2>
-            </div>
-            <div className="h-[500px] rounded-lg overflow-hidden">
-              <Plot Origin={origin} Destinations={destinations} Mode={mode} query={generatePopupData} />
-            </div>
-          </motion.section>
-
-          {/* Notifications */}
-          <motion.aside
-            variants={componentVariants}
-            initial="hidden"
-            animate="visible"
-            className={`rounded-xl shadow-lg p-6 ${
-              isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
-            } border max-h-[400px] overflow-y-auto`}
+            } border rounded-t-xl shadow-lg`}
           >
             <div className="flex justify-between items-center mb-4">
               <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
@@ -297,7 +213,6 @@ export default function LandingPageClient({ initialUserProfile }) {
                               : 'text-green-700'
                           }`}
                         >
-                          {/* Placeholder for AlertCircle icon */}
                           ⚠️
                         </div>
                         <div>
@@ -318,10 +233,31 @@ export default function LandingPageClient({ initialUserProfile }) {
                 )}
               </AnimatePresence>
             </div>
-          </motion.aside>
-        </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div className="flex justify-around items-center h-16">
+        {tabs.map((tab) => (
+          <motion.button
+            key={tab.id}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => handleTabClick(tab.id, tab.route)}
+            className={`flex flex-col items-center ${
+              activeTab === tab.id
+                ? isDark
+                  ? 'text-teal-400'
+                  : 'text-teal-600'
+                : isDark
+                  ? 'text-gray-400'
+                  : 'text-gray-600'
+            }`}
+          >
+            {tab.icon}
+            <span className="text-xs font-semibold mt-1">{tab.label}</span>
+          </motion.button>
+        ))}
       </div>
-      <BottomMenu />
     </div>
   )
 }

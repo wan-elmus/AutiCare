@@ -6,8 +6,6 @@ import { UserContext } from '@/context/UserContext'
 import { useWebSocket } from '@/context/WebSocketContext'
 import { FaHeartbeat, FaTemperatureHigh, FaBolt } from 'react-icons/fa'
 import ConcentricGauge from '../../utils/ConcentricGauge'
-import StressIndicator from '../StressIndicator/StressIndicator'
-import { getHeartRateColor, getTemperatureColor, getGSRColor } from '../../utils/colors'
 
 export default function RealTimeMonitoring() {
   const { isDark } = useTheme()
@@ -39,18 +37,28 @@ export default function RealTimeMonitoring() {
 
     const latestMessage = wsMessages[wsMessages.length - 1]
     if (!latestMessage || latestMessage.type !== 'sensor_data') {
-      console.log('No valid sensor_data message yet:', latestMessage)
+      console.log('No valid sensor_data message:', latestMessage)
       setIsLoading(true)
       return
     }
 
-    console.log('Updating real-time metrics:', latestMessage)
+    try {
+      console.log('Parsed WebSocket message:', latestMessage)
+      // Validate and normalize data
+      const validatedHeartRate = Math.max(0, Math.min(150, latestMessage.heart_rate || 0))
+      const validatedTemperature = Math.max(0, Math.min(40, latestMessage.temperature || 0))
+      const validatedGsr = Math.max(0, Math.min(10, latestMessage.gsr || 0))
+      const validatedStressLevel = Math.max(0, Math.min(3, latestMessage.stress_level || 0))
 
-    setHeartRate(latestMessage.heart_rate)
-    setTemperature(latestMessage.temperature)
-    setGsr(latestMessage.gsr)
-    setStressLevel(latestMessage.stress_level)
-    setIsLoading(false)
+      setHeartRate(validatedHeartRate)
+      setTemperature(validatedTemperature)
+      setGsr(validatedGsr)
+      setStressLevel(validatedStressLevel)
+      setIsLoading(false)
+    } catch (error) {
+      console.error('Error parsing WebSocket message:', error, latestMessage)
+      setIsLoading(true)
+    }
   }, [user?.id, wsMessages])
 
   const handleToggle = (type) => {
@@ -113,9 +121,11 @@ export default function RealTimeMonitoring() {
         isDark ? 'bg-gray-800 border-teal-700' : 'bg-white border-teal-200'
       } border`}
     >
-      <h2 className={`text-2xl font-semibold mb-6 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-        Live Stress Indicators
-      </h2>
+      <div className="mb-6">
+        <h2 className={`text-2xl font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+          Live Stress Indicators
+        </h2>
+      </div>
       <div className="flex flex-col items-center gap-8">
         {/* Single Concentric Gauge */}
         <ConcentricGauge
@@ -124,28 +134,6 @@ export default function RealTimeMonitoring() {
           temperature={temperature}
           isDark={isDark}
         />
-
-        {/* Stress Level Card */}
-        <motion.div
-          variants={fadeInVariants}
-          className={`w-full max-w-md p-6 rounded-xl shadow-md ${
-            isDark ? 'bg-gray-900 border-teal-700' : 'bg-teal-50 border-teal-200'
-          } border`}
-        >
-          <StressIndicator level={stressLevel} />
-          <div className="mt-4">
-            <p className={`text-sm ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-              {stressLevel === 'high'
-                ? 'Recommendation: Consider calming activities or consult a caregiver.'
-                : stressLevel === 'moderate'
-                ? 'Recommendation: Monitor closely, engage in light relaxation.'
-                : 'Status: Stable, no immediate action required.'}
-            </p>
-            <p className={`text-xs mt-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
-              Alerts Enabled: {Object.values(alerts).filter(Boolean).length} / 3
-            </p>
-          </div>
-        </motion.div>
 
         {/* Metric Icons and Values */}
         <div className="grid grid-cols-3 gap-6 w-full max-w-md">
@@ -159,7 +147,7 @@ export default function RealTimeMonitoring() {
               <span className={`text-sm font-medium ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
                 {metric.label}
               </span>
-              <span className={`text-lg font-bold ${isDark ? 'text-teal-100' : 'text-teal-900'}`}>
+              <span className={`text-md font-bold ${isDark ? 'text-teal-100' : 'text-teal-900'}`}>
                 {metric.value !== null ? `${metric.value} ${metric.unit}` : 'N/A'}
               </span>
               <div className="flex items-center justify-center mt-2">
@@ -185,6 +173,20 @@ export default function RealTimeMonitoring() {
             </motion.div>
           ))}
         </div>
+
+        {/* Stress Level */}
+        <motion.div
+          variants={fadeInVariants}
+          initial="hidden"
+          animate="visible"
+          className={`w-full max-w-md p-4 rounded-xl shadow-md ${
+            isDark ? 'bg-gray-900 border-teal-700' : 'bg-teal-50 border-teal-200'
+          } border`}
+        >
+          <p className={`text-lg text-align-center font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+            Stress Level: {stressLevel !== null ? stressLevel : 'N/A'}
+          </p>
+        </motion.div>
       </div>
     </motion.div>
   )

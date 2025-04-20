@@ -15,7 +15,6 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(!initialData && !user);
 
-  // Animation variants
   const fadeInVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
@@ -29,7 +28,6 @@ export default function ChildProfile({ initialData, isExpanded = false, onExpand
 
   const profileData = user || initialData;
 
-  // Fetch notifications
   useEffect(() => {
     async function fetchNotifications() {
       if (!profileData?.id) return;
