@@ -29,6 +29,7 @@ const nextConfig = {
             key: 'Access-Control-Allow-Headers',
             value: 'Content-Type, Authorization',
           },
+          
         ],
       },
     ];
@@ -55,3 +56,60 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
+
+
+// /** @type {import('next').NextConfig} */
+// const nextConfig = {
+//     experimental: {
+//       turbo: {
+//         optimizeFonts: false,
+//       },
+//       serverActions: {
+//         allowedOrigins: ['localhost:3000'],
+//       },
+//     },
+//     async headers() {
+//       return [
+//         {
+//           source: '/(.*)',
+//           headers: [
+//             {
+//               key: 'Access-Control-Allow-Credentials',
+//               value: 'true',
+//             },
+//             {
+//               key: 'Access-Control-Allow-Origin',
+//               value: 'http://localhost:3000',
+//             },
+//             {
+//               key: 'Access-Control-Allow-Methods',
+//               value: 'GET, POST, PUT, DELETE, OPTIONS',
+//             },
+//             {
+//               key: 'Access-Control-Allow-Headers',
+//               value: 'Content-Type, Authorization',
+//             },
+//           ],
+//         },
+//       ];
+//     },
+//     async rewrites() {
+//       return [
+//         {
+//           source: '/api/:path*',
+//           destination: 'http://195.7.7.15:8000/api/:path*',
+//         },
+//         {
+//           source: '/sensor/:path*',
+//           destination: 'http://195.7.7.15:8000/sensor/:path*',
+//         },
+//         {
+//           source: '/:path(users|auth)/:subpath*',
+//           destination: 'http://195.7.7.15:8000/:path/:subpath*',
+//         },
+//       ];
+//     },
+//   };
+  
+//   export default nextConfig;

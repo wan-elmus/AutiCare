@@ -343,7 +343,7 @@ export default function LandingPageClient({ initialUserProfile }) {
         )}
       </AnimatePresence>
 
-      <Footer />
+      {/* <Footer /> */}
       <BottomMenu/>
     </div>
   )

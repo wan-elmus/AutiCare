@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import useSWR from "swr";
 import { fetcher } from '../../app/lib/data';
 import { Map, Popup, GeolocateControl, FullscreenControl, Source, Layer, Marker } from 'react-map-gl/maplibre';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import 'maplibre-gl/dist/maplibre-gl.css'; // Changed from mapbox-gl.css
 import { SearchBox } from '@mapbox/search-js-react';
 import Spinner from './Spinner';
 
@@ -13,7 +13,7 @@ if (!process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
   throw new Error('Mapbox token is required. Please add NEXT_PUBLIC_MAPBOX_TOKEN to your environment variables.');
 }
 
-export  function Stats() {
+export function Stats() {
   const [viewState, setViewState] = useState({
     longitude: 36.825363,
     latitude: -1.284919,
@@ -31,11 +31,10 @@ export  function Stats() {
   return (
     <>
     <Map
-      mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
       {...viewState}
       onMove={evt => setViewState(evt.viewState)}
       style={{ width: '100%', height: '100%', overflow: 'hidden' }}
-      mapStyle="mapbox://styles/mapbox/streets-v9"
+      mapStyle="https://demotiles.maplibre.org/style.json" // Using a free MapLibre style
       ref={mapRef}
     >
       <FullscreenControl/>
@@ -67,14 +66,12 @@ export default function Plot({Destinations, Mode, Origin, query}) {
   
   let mapRef = useRef(null);
 
-  // https://api.mapbox.com/directions/v5/{profile}/{coordinates}
   let { data, isError, isLoading, mutate } = useSWR([url,{}], fetcher,{
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       errorRetryInterval: 3000000
   });
 
-//   if(isLoading || isError) return <div className='w-full h-full'><Spinner/></div>
   if(isLoading || isError) return <p>Loading</p>
 
   const handleClick = (e) => {
@@ -129,13 +126,13 @@ export default function Plot({Destinations, Mode, Origin, query}) {
     id: 'pointNumbers',
     type: 'symbol',
     layout: {
-      'text-field': ['get', 'number'], // This will get the 'number' property from each feature
-      'text-size': 12,                 // Adjust the size of the numbers
-      'text-offset': [0, 1],           // Position the text slightly above the point
-      'text-anchor': 'top',            // Anchor the text at the top
+      'text-field': ['get', 'number'],
+      'text-size': 12,
+      'text-offset': [0, 1],
+      'text-anchor': 'top',
     },
     paint: {
-      'text-color': '#000000',         // Choose a color for the numbers
+      'text-color': '#000000',
     },
   };
 
@@ -149,8 +146,8 @@ export default function Plot({Destinations, Mode, Origin, query}) {
       placeholder="Search apartment..."
       accessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
       onSelectionChange={(selection) => {
-        setViewport({
-          ...viewport,
+        setViewState({
+          ...viewState,
           latitude: selection.center[1],
           longitude: selection.center[0],
         });
@@ -163,14 +160,13 @@ export default function Plot({Destinations, Mode, Origin, query}) {
       }}
     />
     <Map
-      mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
       {...viewState}
       onMove={evt => setViewState(evt.viewState)}
       onMouseMove={handleHover}
       interactiveLayerIds={['point']}
       onClick={handleClick}
       style={{ width: '100%', height: '100%', overflow: 'hidden' }}
-      mapStyle="mapbox://styles/mapbox/streets-v9"
+      mapStyle="https://demotiles.maplibre.org/style.json" // Using a free MapLibre style
       ref={mapRef}
     >
       <Source id="route" type="geojson" data={{

@@ -18,6 +18,13 @@ app.prepare().then(() => {
   server.on('upgrade', (request, socket, head) => {
     const { pathname, query } = parse(request.url, true);
     console.log(`WebSocket upgrade requested for: ${pathname}`);
+
+    if (pathname.startsWith('/_next')) {
+        console.log(`Ignoring WebSocket request for ${pathname}`);
+        socket.destroy();
+        return;
+    }
+
     if (pathname === '/ws/sensor/data') {
       const user_id = query.user_id;
       if (!user_id) {
