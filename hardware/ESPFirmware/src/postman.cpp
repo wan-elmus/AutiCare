@@ -11,8 +11,7 @@ HTTPClient http;
 
 const char* ssid = "universe";
 const char* password = "one2eight!";
-// const char* API_URL = "http://192.168.100.7:8000/sensor/data";
-const char* API_URL = "http://192.168.100.8:7777/test";
+const char* API_URL = "http://195.7.7.15:8002/sensor/data";
 
 bool setupWiFi(){
     Serial.print("Connecting to ");
@@ -43,8 +42,9 @@ bool send(const SensorData &payload) {
     postData += "\"temperature\":" + String(payload.temperature, 6) + ",";
     postData += "\"heart_rate\":" + String(payload.BPM, 6) + ",";
     postData += "\"gsr\":" + String(payload.GSR) + ",";
-    postData += "\"lat\":0.000000,";  // Hardcoded latitude
-    postData += "\"long\":0.000000";  // Hardcoded longitude
+    postData += "\"lat\":" + String(payload.latitide, 6) + ",";
+    postData += "\"long\":" + String(payload.longitude, 6) + ",";
+    postData += "\"user_id\":1";  // Hardcoded userid
     postData += "}";
 
     String URL = API_URL;

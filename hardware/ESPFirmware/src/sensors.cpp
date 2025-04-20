@@ -1,9 +1,17 @@
+#include <TinyGPS++.h>
+#include <SoftwareSerial.h>
 #include "MAX30105.h"
 #include "heartRate.h"
 #include "sensors.h"
 #include "gsr.h"
 
 MAX30105 particleSensor;
+static const int RXPin = D7, TXPin = D8;
+static const uint32_t GPSBaud = 9600;
+
+TinyGPSPlus gps;
+
+SoftwareSerial ss(RXPin, TXPin);
 
 const byte RATE_SIZE = 4; //Increase this for more averaging. 4 is good.
 byte rates[RATE_SIZE]; //Array of heart rates
@@ -15,6 +23,7 @@ int beatAvg;
 
 void setupSensors()
 {
+    ss.begin(GPSBaud);
   if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) //Use default I2C port, 400kHz speed
   {
     Serial.println("MAX30105 was not found. Please check wiring/power. ");
@@ -83,6 +92,19 @@ SensorData readSensorsData()
     data.BPM = beatsPerMinute;
     data.avgBPM = beatAvg;
     data.noFinger = irValue < 50000 && (GSRvalue < 50);
+
+    while (ss.available() > 0){
+    Serial.print('.');
+    gps.encode(ss.read());
+    if (gps.location.isUpdated()){
+        Serial.print("Latitude= "); 
+        Serial.print(gps.location.lat(), 6);
+        Serial.print(" Longitude= "); 
+        Serial.println(gps.location.lng(), 6);
+        data.latitide = gps.location.lat();
+        data.longitude = gps.location.lng();
+    }
+  }
 
     return data;
 }
