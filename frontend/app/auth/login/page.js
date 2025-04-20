@@ -14,85 +14,44 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const { user, setUser } = useContext(UserContext)
-  const [tokenExpiryMinutes, setTokenExpiryMinutes] = useState(null);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
   const fadeInVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
   }
-  // useEffect(() => {
-  //   if (user?.id) {
-  //     router.push('/');
-  //   }
-  // }, [user, router]);
 
-  useEffect(() => {
-    const fetchConfig = async () => {
-      if (!tokenExpiryMinutes) {
-        try {
-          const response = await fetch('http://195.7.7.15:8002/auth/config', 
-            { credentials: 'include' });
-          const data = await response.json();
-          setTokenExpiryMinutes(data.access_token_expire_minutes);
-        } catch (err) {
-          console.error('Failed to fetch token expiry:', err);
-          setTokenExpiryMinutes(15);
-        }
-      }
-    };
-    fetchConfig();
-  }, [tokenExpiryMinutes]);
-
-  useEffect(() => {
-    const refreshToken = async () => {
-      try {
-        const response = await fetch('http://195.7.7.15:8002/auth/refresh', {
-          method: 'POST',
-          credentials: 'include',
-        });
-        if (!response.ok) throw new Error('Refresh failed');
-        const data = await response.json();
-        console.log('Refreshed token:', data.access_token);
-      } catch (err) {
-        console.error('Token refresh error:', err);
-        setUser(null);
-        router.push('/auth/login');
-      }
-    };
-    if (user?.id && tokenExpiryMinutes) {
-      const interval = setInterval(refreshToken, (tokenExpiryMinutes - 1) * 60 * 1000);
-      return () => clearInterval(interval);
-    }
-  }, [user, setUser, router, tokenExpiryMinutes]);
+//   useEffect(() => {
+//     if (user?.id) {
+//       router.push('/')
+//     }
+//   }, [user, router])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
     try {
-      const response = await fetch('http://195.7.7.15:8002/auth/login', {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ email, password }),
       })
-      
-        const data = await response.json()
-
-        if (!response.ok) {      
+      const data = await response.json()
+      if (!response.ok) {
         throw new Error(data.detail || 'Invalid credentials')
       }
-      console.log('Login response data:', JSON.stringify(data, null, 2));
-      const userData = data.user;
+      const userData = data.user
       if (!userData || !userData.id) {
-        throw new Error('No user data or ID in response');
+        throw new Error('No user data or ID in response')
       }
-      console.log(userData)
       setUser(userData)
       await new Promise((resolve) => setTimeout(resolve, 500))
       router.push('/')
     } catch (err) {
       setError(err.message)
+      console.log('Login error:', err)
     } finally {
       setIsLoading(false)
     }
@@ -121,7 +80,7 @@ export default function LoginPage() {
               isDark ? 'bg-teal-700' : 'bg-teal-200'
             } text-3xl font-bold ${isDark ? 'text-teal-200' : 'text-teal-800'} shadow-md mb-4`}
           >
-            A 
+            A
           </motion.div>
           <h1 className={`text-3xl font-bold ${isDark ? 'text-teal-300' : 'text-teal-800'}`}>Care Begins Here</h1>
           <p className={`text-sm mt-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>

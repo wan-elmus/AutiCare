@@ -34,12 +34,20 @@ export default function BottomMenu({
       const res = await fetch(`${API_URL}/dosages`, {
         credentials: 'include',
       })
-      if (!res.ok) throw new Error('Failed to fetch dosages')
-      const data = await res.json()
-      setDosages(data)
-      setDosageError(null)
+      if (!res.ok) {
+        if (res.status === 404) {
+          setDosages([])
+          setDosageError('No dosages found. Add a child profile first.')
+        } else {
+          throw new Error('Failed to fetch dosages')
+        }
+      } else {
+        const data = await res.json()
+        setDosages(data)
+        setDosageError(null)
+      }
     } catch (err) {
-      setDosageError('Error fetching dosages')
+      setDosageError(err.message)
       console.log('Error fetching dosages:', err)
     }
   }
@@ -136,11 +144,8 @@ export default function BottomMenu({
     setActiveTab(tabId)
     if (tabId === 'notifications') {
       toggleNotifications()
-    } else {
-      toggleNotifications(false)
-      if (route) {
-        router.push(route)
-      }
+    } else if (route) {
+      router.push(route)
     }
   }
 
@@ -148,7 +153,7 @@ export default function BottomMenu({
     <div
       className={`fixed bottom-0 left-0 right-0 z-50 ${
         isDark ? 'bg-gradient-to-tl from-gray-900 via-teal-950 to-gray-800' : 'bg-white'
-      } shadow-lg`}
+      } shadow-lg pb-safe`}
     >
       <AnimatePresence>
         {showNotifications && (

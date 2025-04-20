@@ -46,8 +46,8 @@ export default function RealTimeMonitoring() {
       console.log('Parsed WebSocket message:', latestMessage)
       // Validate and normalize data
       const validatedHeartRate = Math.max(0, Math.min(150, latestMessage.heart_rate || 0))
-      const validatedTemperature = Math.max(0, Math.min(40, latestMessage.temperature || 0))
-      const validatedGsr = Math.max(0, Math.min(10, latestMessage.gsr || 0))
+      const validatedTemperature = Math.max(30, Math.min(40, latestMessage.temperature || 0))
+      const validatedGsr = Math.max(0, Math.min(200, latestMessage.gsr || 0))
       const validatedStressLevel = Math.max(0, Math.min(3, latestMessage.stress_level || 0))
 
       setHeartRate(validatedHeartRate)
