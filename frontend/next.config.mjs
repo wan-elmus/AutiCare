@@ -58,7 +58,7 @@ const nextConfig = {
       },
       // Proxy user and auth routes (e.g., /users/me, /auth/login)
       {
-        source: '/:path(users|auth)/:subpath*',
+        source: '/:path(users|auth|caregivers|children|dosages)/:subpath*',
         destination: 'http://195.7.7.15:8002/:path/:subpath*',
       },
     ];
