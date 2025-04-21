@@ -45,13 +45,19 @@ export default function Profile() {
 
   const fetchCaregiver = async () => {
     try {
+      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
       const res = await fetch(`${API_URL}/caregivers/me`, {
         credentials: 'include',
+        headers,
       })
       if (res.ok) {
         const data = await res.json()
         setCaregiver(data)
         setCaregiverForm({ name: data.name, email: data.email, phone: data.phone || '', relation_type: data.relation_type || '' })
+        setError('')
+      } else if (res.status === 404) {
+        setCaregiver(null)
+        setError('Caregiver profile not found. Please create one.')
       } else {
         setError('Failed to fetch caregiver data')
       }
@@ -62,12 +68,18 @@ export default function Profile() {
 
   const fetchChildren = async () => {
     try {
+      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
       const res = await fetch(`${API_URL}/children`, {
         credentials: 'include',
+        headers,
       })
       if (res.ok) {
         const data = await res.json()
         setChildren(data)
+        setError('')
+      } else if (res.status === 404) {
+        setChildren([])
+        setError('No children found. Add a child profile first.')
       } else {
         setError('Failed to fetch children data')
       }
@@ -78,12 +90,18 @@ export default function Profile() {
 
   const fetchDosages = async () => {
     try {
+      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
       const res = await fetch(`${API_URL}/dosages`, {
         credentials: 'include',
+        headers,
       })
       if (res.ok) {
         const data = await res.json()
         setDosages(data)
+        setError('')
+      } else if (res.status === 404) {
+        setDosages([])
+        setError('No dosages found. Add a child profile first.')
       } else {
         setError('Failed to fetch dosages')
       }
@@ -95,9 +113,10 @@ export default function Profile() {
   const handleCaregiverSubmit = async (e) => {
     e.preventDefault()
     try {
+      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
       const res = await fetch(`${API_URL}/caregivers/me`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'include',
         body: JSON.stringify(caregiverForm),
       })
@@ -115,11 +134,12 @@ export default function Profile() {
   const handleChildSubmit = async (e) => {
     e.preventDefault()
     try {
+      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
       const method = editingChildId ? 'PUT' : 'POST'
       const url = editingChildId ? `${API_URL}/children/${editingChildId}` : `${API_URL}/children`
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'include',
         body: JSON.stringify(childForm),
       })
@@ -142,11 +162,12 @@ export default function Profile() {
   const handleDosageSubmit = async (e) => {
     e.preventDefault()
     try {
+      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
       const method = editingDosageId ? 'PUT' : 'POST'
       const url = editingDosageId ? `${API_URL}/dosages/${editingDosageId}` : `${API_URL}/dosages`
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'include',
         body: JSON.stringify(dosageForm),
       })
@@ -178,12 +199,15 @@ export default function Profile() {
 
   const handleChildDelete = async (id) => {
     try {
+      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
       const res = await fetch(`${API_URL}/children/${id}`, {
         method: 'DELETE',
         credentials: 'include',
+        headers,
       })
       if (res.ok) {
         await fetchChildren()
+        setError('')
       } else {
         setError('Failed to delete child')
       }
@@ -194,12 +218,15 @@ export default function Profile() {
 
   const handleDosageDelete = async (id) => {
     try {
+      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
       const res = await fetch(`${API_URL}/dosages/${id}`, {
         method: 'DELETE',
         credentials: 'include',
+        headers,
       })
       if (res.ok) {
         await fetchDosages()
+        setError('')
       } else {
         setError('Failed to delete dosage')
       }
@@ -307,7 +334,7 @@ export default function Profile() {
               </form>
             ) : (
               <p className={`text-sm ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
-                Loading caregiver data...
+                No caregiver profile found. Please create one.
               </p>
             )}
           </motion.div>

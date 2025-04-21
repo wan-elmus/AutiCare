@@ -27,8 +27,10 @@ export default function RootLayout({ children }) {
   useEffect(() => {
     const fetchUser = async () => {
       try {
+        const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
         const res = await fetch(`${API_URL}/users/me`, {
           credentials: 'include',
+          headers,
         })
         if (res.ok) {
           const data = await res.json()
@@ -46,10 +48,11 @@ export default function RootLayout({ children }) {
 
     const createCaregiverProfile = async (userData) => {
       try {
+        const headers = userData?.access_token ? { 'Authorization': `Bearer ${userData.access_token}` } : {}
         const res = await fetch(`${API_URL}/caregivers/me`, {
           credentials: 'include',
+          headers,
         })
-        
         if (res.status === 404) {
           const caregiverData = {
             name: `${userData.first_name} ${userData.last_name}`,
@@ -57,17 +60,38 @@ export default function RootLayout({ children }) {
             phone: null,
             relation_type: 'Parent',
           }
-          
-          await fetch(`${API_URL}/caregivers`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const caregiverRes = await fetch(`${API_URL}/caregivers/me`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...headers },
             credentials: 'include',
             body: JSON.stringify(caregiverData),
           })
-          console.log('Created new caregiver profile')
+          if (!caregiverRes.ok) throw new Error(`Failed to create caregiver: ${caregiverRes.status}`)
+          console.log('Created caregiver profile')
+
+          // Create a Child record
+          const childData = {
+            name: 'Test Child',
+            age: 5,
+            gender: 'Other',
+            conditions: '',
+            allergies: '',
+            milestones: '',
+            behavioral_notes: '',
+            emergency_contacts: '',
+            medical_history: '',
+          }
+          const childRes = await fetch(`${API_URL}/children`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...headers },
+            credentials: 'include',
+            body: JSON.stringify(childData),
+          })
+          if (!childRes.ok) throw new Error(`Failed to create child: ${childRes.status}`)
+          console.log('Created child profile')
         }
       } catch (err) {
-        console.error('Error handling caregiver profile:', err)
+        console.error('Error handling caregiver/child profile:', err)
       }
     }
 
@@ -77,8 +101,10 @@ export default function RootLayout({ children }) {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
+        const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
         const res = await fetch(`${API_URL}/api/notifications`, {
           credentials: 'include',
+          headers,
         })
         if (!res.ok) throw new Error(`Failed with status ${res.status}`)
         const data = await res.json()
@@ -101,9 +127,11 @@ export default function RootLayout({ children }) {
     toggle: () => setShowNotifications((prev) => !prev),
     dismiss: async (id) => {
       try {
+        const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
         const res = await fetch(`${API_URL}/api/notifications/${id}/dismiss`, {
           method: 'PUT',
           credentials: 'include',
+          headers,
         })
         if (!res.ok) throw new Error('Dismiss failed')
         setNotifications((prev) => prev.filter((n) => n.id !== id))
@@ -113,9 +141,11 @@ export default function RootLayout({ children }) {
     },
     dismissAll: async () => {
       try {
+        const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
         const res = await fetch(`${API_URL}/api/notifications/dismiss-all`, {
           method: 'PUT',
           credentials: 'include',
+          headers,
         })
         if (!res.ok) throw new Error('Bulk dismiss failed')
         setNotifications([])
@@ -142,13 +172,11 @@ export default function RootLayout({ children }) {
               />
             </WebSocketProvider>
           </UserProvider>
-          {/* {children} */}
         </ThemeProvider>
       </body>
     </html>
   )
 }
-
 
 
 

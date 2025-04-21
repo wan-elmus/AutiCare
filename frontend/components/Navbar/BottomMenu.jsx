@@ -8,11 +8,11 @@ import { FaHome, FaUser, FaBell, FaRobot, FaTimes } from 'react-icons/fa'
 
 export default function BottomMenu({
   notifications,
-  notificationError,
-  showNotifications,
-  toggleNotifications,
-  dismissNotification,
-  dismissAllNotifications,
+  error: notificationError,
+  show: showNotifications,
+  onToggle,
+  onDismiss,
+  onDismissAll,
 }) {
   const { isDark } = useTheme()
   const { user } = useContext(UserContext)
@@ -31,13 +31,17 @@ export default function BottomMenu({
 
   const fetchDosages = async () => {
     try {
+      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
       const res = await fetch(`${API_URL}/dosages`, {
         credentials: 'include',
+        headers,
       })
       if (!res.ok) {
         if (res.status === 404) {
           setDosages([])
           setDosageError('No dosages found. Add a child profile first.')
+        } else if (res.status === 401) {
+          setDosageError('Authentication failed. Please log in again.')
         } else {
           throw new Error('Failed to fetch dosages')
         }
@@ -143,7 +147,7 @@ export default function BottomMenu({
     console.log(`Navigating to ${route} for tab ${tabId}`)
     setActiveTab(tabId)
     if (tabId === 'notifications') {
-      toggleNotifications()
+      onToggle()
     } else if (route) {
       router.push(route)
     }
@@ -174,7 +178,7 @@ export default function BottomMenu({
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={dismissAllNotifications}
+                  onClick={onDismissAll}
                   className={`text-sm px-3 py-1 rounded-md ${
                     isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'
                   }`}
@@ -207,7 +211,7 @@ export default function BottomMenu({
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => dismissNotification(notification.id)}
+                        onClick={() => onDismiss(notification.id)}
                         className="absolute top-2 right-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                       >
                         <FaTimes className="h-4 w-4" />
