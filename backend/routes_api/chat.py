@@ -16,11 +16,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["chat"])
 
 # Configure Gemini API
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    logger.error("GEMINI_API_KEY not found in environment variables")
-    raise ValueError("GEMINI_API_KEY is required")
-configure(api_key=GEMINI_API_KEY)
+configure(api_key=os.getenv("GEMINI_API_KEY"))
 gemini_model = GenerativeModel("gemini-1.5-flash")
 
 # Pydantic models
@@ -39,6 +35,10 @@ class InsightsResponse(BaseModel):
     insights: List[Insight]
 
 # Helper functions
+def format_medication(d):
+    """Helper function to properly format medication information"""
+    return f"{d['medication']} ({d['frequency']})"
+
 async def get_user_by_email(email: str, db: Session) -> Optional[User]:
     user = db.query(User).filter(User.email == email).first()
     if not user:
@@ -148,13 +148,13 @@ async def chat(request: ChatRequest, email: str, db: Session = Depends(get_db)):
         child_dosages = [d for d in dosages if d['child_id'] == child['id']]
         if child_dosages:
             child_context.append(
-                f"Medications: {', '.join(f'{d['medication']} ({d['frequency']})' for d in child_dosages)}"
+                f"Medications: {', '.join(format_medication(d) for d in child_dosages)}"
             )
         context.append("; ".join(child_context))
 
     # Enhanced prompt
     prompt = (
-        "You are AutiCare’s AI assistant, an expert in autism spectrum disorder (ASD) care, drawing from CDC guidelines, "
+        "You are AutiCare's AI assistant, an expert in autism spectrum disorder (ASD) care, drawing from CDC guidelines, "
         "Autism Speaks, National Autism Association, and 2025 research. AutiCare is a real-time monitoring platform for "
         "caregivers of children with autism, using wearable sensors (GSR, heart rate, temperature) to track stress, provide "
         "personalized insights, manage medications, and offer AI-driven guidance. It empowers caregivers to anticipate meltdowns, "
@@ -182,7 +182,7 @@ async def chat(request: ChatRequest, email: str, db: Session = Depends(get_db)):
         "If asked about AutiCare, explain its features (e.g., stress tracking, medication management, chatbot), benefits "
         "(e.g., meltdown prevention, professional collaboration), and usage (e.g., check dashboards in the app, update profiles). "
         "Avoid medical diagnoses or medication advice; suggest consulting professionals when appropriate. "
-        "Be concise, empathetic, and informative, tailoring responses to the child’s data."
+        "Be concise, empathetic, and informative, tailoring responses to the child's data."
     )
 
     try:
@@ -228,12 +228,12 @@ async def get_insights(email: str, db: Session = Depends(get_db)):
             context.append(f"Latest Stress Level (last 12h): {latest_stress}")
 
         prompt = (
-            "You are AutiCare’s AI assistant, specializing in autism care. AutiCare uses wearable sensors to monitor stress "
+            "You are AutiCare's AI assistant, specializing in autism care. AutiCare uses wearable sensors to monitor stress "
             "(via GSR, heart rate, temperature) and predict stress levels for children with autism, providing tailored insights. "
-            "Analyze this child’s data from the last 12 hours:\n"
+            "Analyze this child's data from the last 12 hours:\n"
             f"{'; '.join(context)}\n"
             "Insights are derived from sensor data and stress predictions, identifying patterns like high stress or sensory overload. "
-            "Provide one concise, actionable insight for stress management or care, tailored to the child’s data. Examples include "
+            "Provide one concise, actionable insight for stress management or care, tailored to the child's data. Examples include "
             "suggesting calming activities (e.g., sensory breaks, deep breathing) or routine adjustments. Avoid medical advice; "
             "suggest general strategies or professional consultation."
         )
