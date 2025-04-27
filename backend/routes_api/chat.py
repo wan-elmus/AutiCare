@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import os
 import logging
 from google.generativeai import configure, GenerativeModel
-from database import get_db
+from database.db import get_db
 from database.models import User, Child, SensorData, Prediction, Dosage
 from typing import List, Optional
 
