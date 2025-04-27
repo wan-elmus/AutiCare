@@ -20,11 +20,12 @@ app = FastAPI()
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://195.7.7.15:3000",
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,7 +37,6 @@ app.include_router(history.router)
 app.include_router(predict.router)
 app.include_router(sensors.router)
 app.include_router(users.router)
-# app.include_router(websocket_routes.router)
 app.include_router(notifications.router)
 app.include_router(caregivers.router)
 app.include_router(children.router)
