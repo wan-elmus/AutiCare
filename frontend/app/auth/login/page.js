@@ -14,44 +14,40 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const { user, setUser } = useContext(UserContext)
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://195.7.7.15:8002'
 
   const fadeInVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
   }
 
-//   useEffect(() => {
-//     if (user?.id) {
-//       router.push('/')
-//     }
-//   }, [user, router])
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ email, password }),
       })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.detail || 'Invalid credentials')
+      if (!res.ok) {
+        throw new Error('Invalid email or password')
       }
-      const userData = data.user
-      if (!userData || !userData.id) {
-        throw new Error('No user data or ID in response')
+      const data = await res.json()
+      const userData = {
+        id: data.user.id,
+        email: data.user.email,
+        first_name: data.user.first_name,
+        last_name: data.user.last_name,
       }
+      console.log('Login: User set:', userData)
       setUser(userData)
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      localStorage.setItem('user_email', userData.email)
       router.push('/')
     } catch (err) {
       setError(err.message)
-      console.log('Login error:', err)
+      console.error('Login error:', err)
     } finally {
       setIsLoading(false)
     }

@@ -1,19 +1,68 @@
 'use client'
-import { createContext, useState } from 'react'
+import { createContext } from 'react'
 
 export const UserContext = createContext()
 
-export const UserProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-
+export function UserProvider({ children, value }) {
   return (
-    <UserContext.Provider value={{ 
-        user, setUser 
-    }}>
+    <UserContext.Provider value={value}>
       {children}
     </UserContext.Provider>
   )
 }
+
+
+// 'use client'
+// import { createContext, useState, useEffect } from 'react'
+
+// export const UserContext = createContext()
+
+// export function UserProvider({ children, value }) {
+//   const [user, setUser] = useState(null)
+//   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://195.7.7.15:8002'
+
+//   useEffect(() => {
+//     const restoreSession = async () => {
+//       try {
+//         const email = localStorage.getItem('user_email')
+//         console.log('UserContext: Email from localStorage:', email)
+//         if (!email) {
+//           console.log('UserContext: No email found')
+//           setUser(null)
+//           return
+//         }
+//         const res = await fetch(`${API_URL}/users/me?email=${encodeURIComponent(email)}`, {
+//           method: 'GET',
+//         })
+//         if (res.ok) {
+//           const data = await res.json()
+//           console.log('UserContext: Session restored:', data)
+//           setUser(data)
+//         } else {
+//           console.error('UserContext: Failed to restore session, status:', res.status)
+//           setUser(null)
+//           localStorage.removeItem('user_email')
+//         }
+//       } catch (err) {
+//         console.error('UserContext: Error restoring session:', err)
+//         setUser(null)
+//         localStorage.removeItem('user_email')
+//       }
+//     }
+
+//     restoreSession()
+//   }, [API_URL])
+
+//   return (
+//     <UserContext.Provider value={{ user, setUser: value?.setUser || setUser }}>
+//       {children}
+//     </UserContext.Provider>
+//   )
+// }
+
+
+
+
 
 
 // 'use client'

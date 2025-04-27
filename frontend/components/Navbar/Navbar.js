@@ -7,22 +7,28 @@ import { MoonIcon, SunIcon, Cog6ToothIcon } from '@heroicons/react/24/solid'
 import { FaSignOutAlt } from 'react-icons/fa'
 import { motion } from 'framer-motion'
 
-export default function Navbar({ userData }) {
+export default function Navbar() {
   const { isDark, toggleTheme } = useTheme()
-  const { setUser } = useContext(UserContext)
+  const { user, setUser } = useContext(UserContext)
   const router = useRouter()
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://195.7.7.15:8002'
 
   const handleLogout = async () => {
     try {
-      await fetch('http://195.7.7.15:8002/auth/logout', {
+      const res = await fetch(`${API_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       })
-      setUser(null)
-      router.push('/auth/login')
+      if (res.ok) {
+        console.log('Navbar: Logged out successfully')
+      } else {
+        console.error('Navbar: Logout failed, status:', res.status)
+      }
     } catch (error) {
-      console.log('Logout failed:', error)
+      console.error('Navbar: Logout error:', error)
+    } finally {
       setUser(null)
+      localStorage.removeItem('user_email')
       router.push('/auth/login')
     }
   }
@@ -75,20 +81,36 @@ export default function Navbar({ userData }) {
                 <MoonIcon className="h-5 w-5 text-teal-600" />
               )}
             </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleLogout}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg shadow-md ${
-                isDark
-                  ? 'bg-teal-600 text-teal-100 hover:bg-teal-700'
-                  : 'bg-teal-500 text-white hover:bg-teal-600'
-              } transition-colors duration-300`}
-              aria-label="Logout"
-            >
-              <FaSignOutAlt className="h-4 w-4" />
-              <span>Logout</span>
-            </motion.button>
+            {user ? (
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleLogout}
+                className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg shadow-md ${
+                  isDark
+                    ? 'bg-teal-600 text-teal-100 hover:bg-teal-700'
+                    : 'bg-teal-500 text-white hover:bg-teal-600'
+                } transition-colors duration-300`}
+                aria-label="Logout"
+              >
+                <FaSignOutAlt className="h-4 w-4" />
+                <span>Logout</span>
+              </motion.button>
+            ) : (
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => router.push('/auth/login')}
+                className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg shadow-md ${
+                  isDark
+                    ? 'bg-teal-600 text-teal-100 hover:bg-teal-700'
+                    : 'bg-teal-500 text-white hover:bg-teal-600'
+                } transition-colors duration-300`}
+                aria-label="Login"
+              >
+                <span>Login</span>
+              </motion.button>
+            )}
           </div>
         </div>
       </div>

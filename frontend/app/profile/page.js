@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '@/context/ThemeContext'
 import { UserContext } from '@/context/UserContext'
-import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa'
+import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes } from 'react-icons/fa'
 
 export default function Profile() {
   const { isDark } = useTheme()
@@ -14,23 +14,23 @@ export default function Profile() {
   const [caregiver, setCaregiver] = useState(null)
   const [children, setChildren] = useState([])
   const [dosages, setDosages] = useState([])
-  const [caregiverForm, setCaregiverForm] = useState({ name: '', email: '', phone: '', relation_type: '' })
+  const [caregiverForm, setCaregiverForm] = useState({ first_name: '', last_name: '', email: '', phone: '', relation_type: '' })
   const [childForm, setChildForm] = useState({
     name: '', age: '', gender: '', conditions: '', allergies: '', milestones: '',
     behavioral_notes: '', emergency_contacts: '', medical_history: ''
   })
   const [dosageForm, setDosageForm] = useState({
     child_id: '', medication: '', condition: '', start_date: '', dosage: '',
-    frequency: '', intervals: [], status: 'active', notes: ''
+    frequency: 'daily', intervals: [], status: 'active', notes: ''
   })
   const [editingChildId, setEditingChildId] = useState(null)
   const [editingDosageId, setEditingDosageId] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://195.7.7.15:8002'
 
   useEffect(() => {
-    console.log('UserContext user:', user)
+    console.log('Profile: UserContext user:', user)
     if (!user) {
       router.push('/auth/login')
       return
@@ -41,37 +41,40 @@ export default function Profile() {
       setLoading(false)
     }
     loadData()
-  }, [user])
+  }, [user, router])
 
   const fetchCaregiver = async () => {
     try {
-      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
-      const res = await fetch(`${API_URL}/caregivers/me`, {
-        credentials: 'include',
-        headers,
+      const res = await fetch(`${API_URL}/caregivers/me?email=${encodeURIComponent(user.email)}`, {
+        method: 'GET',
       })
       if (res.ok) {
         const data = await res.json()
         setCaregiver(data)
-        setCaregiverForm({ name: data.name, email: data.email, phone: data.phone || '', relation_type: data.relation_type || '' })
+        setCaregiverForm({
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
+          email: data.email,
+          phone: data.phone || '',
+          relation_type: data.relation_type || ''
+        })
         setError('')
       } else if (res.status === 404) {
         setCaregiver(null)
-        setError('Caregiver profile not found. Please create one.')
+        setError('Caregiver profile not found. Please update your profile.')
       } else {
-        setError('Failed to fetch caregiver data')
+        throw new Error(`Failed to fetch caregiver: ${res.status}`)
       }
     } catch (err) {
       setError('Error fetching caregiver data')
+      console.error('Profile: fetchCaregiver error:', err)
     }
   }
 
   const fetchChildren = async () => {
     try {
-      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
-      const res = await fetch(`${API_URL}/children`, {
-        credentials: 'include',
-        headers,
+      const res = await fetch(`${API_URL}/children?email=${encodeURIComponent(user.email)}`, {
+        method: 'GET',
       })
       if (res.ok) {
         const data = await res.json()
@@ -79,21 +82,20 @@ export default function Profile() {
         setError('')
       } else if (res.status === 404) {
         setChildren([])
-        setError('No children found. Add a child profile first.')
+        setError('No children found. Add a child profile.')
       } else {
-        setError('Failed to fetch children data')
+        throw new Error(`Failed to fetch children: ${res.status}`)
       }
     } catch (err) {
       setError('Error fetching children data')
+      console.error('Profile: fetchChildren error:', err)
     }
   }
 
   const fetchDosages = async () => {
     try {
-      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
-      const res = await fetch(`${API_URL}/dosages`, {
-        credentials: 'include',
-        headers,
+      const res = await fetch(`${API_URL}/dosages?email=${encodeURIComponent(user.email)}`, {
+        method: 'GET',
       })
       if (res.ok) {
         const data = await res.json()
@@ -103,44 +105,46 @@ export default function Profile() {
         setDosages([])
         setError('No dosages found. Add a child profile first.')
       } else {
-        setError('Failed to fetch dosages')
+        throw new Error(`Failed to fetch dosages: ${res.status}`)
       }
     } catch (err) {
       setError('Error fetching dosages')
+      console.error('Profile: fetchDosages error:', err)
     }
   }
 
   const handleCaregiverSubmit = async (e) => {
     e.preventDefault()
     try {
-      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
-      const res = await fetch(`${API_URL}/caregivers/me`, {
+      const res = await fetch(`${API_URL}/caregivers/me?email=${encodeURIComponent(user.email)}`, {
         method: 'PUT',
-        headers,
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(caregiverForm),
       })
       if (res.ok) {
-        setCaregiver(await res.json())
+        const updatedCaregiver = await res.json()
+        setCaregiver(updatedCaregiver)
         setError('')
+        console.log('Profile: Caregiver updated:', updatedCaregiver)
       } else {
-        setError('Failed to update caregiver')
+        throw new Error(`Failed to update caregiver: ${res.status}`)
       }
     } catch (err) {
-      setError('Error updating caregiver')
+      setError('Error updating caregiver profile')
+      console.error('Profile: handleCaregiverSubmit error:', err)
     }
   }
 
   const handleChildSubmit = async (e) => {
     e.preventDefault()
     try {
-      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
       const method = editingChildId ? 'PUT' : 'POST'
-      const url = editingChildId ? `${API_URL}/children/${editingChildId}` : `${API_URL}/children`
+      const url = editingChildId
+        ? `${API_URL}/children/${editingChildId}?email=${encodeURIComponent(user.email)}`
+        : `${API_URL}/children?email=${encodeURIComponent(user.email)}`
       const res = await fetch(url, {
         method,
-        headers,
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(childForm),
       })
       if (res.ok) {
@@ -151,117 +155,152 @@ export default function Profile() {
         })
         setEditingChildId(null)
         setError('')
+        console.log('Profile: Child saved:', childForm)
       } else {
-        setError('Failed to save child')
+        throw new Error(`Failed to save child: ${res.status}`)
       }
     } catch (err) {
-      setError('Error saving child')
+      setError('Error saving child profile')
+      console.error('Profile: handleChildSubmit error:', err)
     }
   }
 
   const handleDosageSubmit = async (e) => {
     e.preventDefault()
     try {
-      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
       const method = editingDosageId ? 'PUT' : 'POST'
-      const url = editingDosageId ? `${API_URL}/dosages/${editingDosageId}` : `${API_URL}/dosages`
+      const url = editingDosageId
+        ? `${API_URL}/dosages/${editingDosageId}?email=${encodeURIComponent(user.email)}`
+        : `${API_URL}/dosages?email=${encodeURIComponent(user.email)}`
       const res = await fetch(url, {
         method,
-        headers,
-        credentials: 'include',
-        body: JSON.stringify(dosageForm),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...dosageForm,
+          intervals: dosageForm.intervals.length ? dosageForm.intervals : ['00:00'],
+        }),
       })
       if (res.ok) {
         await fetchDosages()
         setDosageForm({
           child_id: '', medication: '', condition: '', start_date: '', dosage: '',
-          frequency: '', intervals: [], status: 'active', notes: ''
+          frequency: 'daily', intervals: [], status: 'active', notes: ''
         })
         setEditingDosageId(null)
         setError('')
+        console.log('Profile: Dosage saved:', dosageForm)
       } else {
-        setError('Failed to save dosage')
+        throw new Error(`Failed to save dosage: ${res.status}`)
       }
     } catch (err) {
       setError('Error saving dosage')
+      console.error('Profile: handleDosageSubmit error:', err)
     }
   }
 
-  const handleChildEdit = (child) => {
+  const handleDeleteChild = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/children/${id}?email=${encodeURIComponent(user.email)}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        setChildren(children.filter((child) => child.id !== id))
+        setError('')
+        console.log('Profile: Child deleted:', id)
+      } else {
+        throw new Error(`Failed to delete child: ${res.status}`)
+      }
+    } catch (err) {
+      setError('Error deleting child')
+      console.error('Profile: handleDeleteChild error:', err)
+    }
+  }
+
+  const handleDeleteDosage = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/dosages/${id}?email=${encodeURIComponent(user.email)}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        setDosages(dosages.filter((dosage) => dosage.id !== id))
+        setError('')
+        console.log('Profile: Dosage deleted:', id)
+      } else {
+        throw new Error(`Failed to delete dosage: ${res.status}`)
+      }
+    } catch (err) {
+      setError('Error deleting dosage')
+      console.error('Profile: handleDeleteDosage error:', err)
+    }
+  }
+
+  const editChild = (child) => {
     setChildForm(child)
     setEditingChildId(child.id)
   }
 
-  const handleDosageEdit = (dosage) => {
-    setDosageForm({ ...dosage, intervals: dosage.intervals || [] })
+  const editDosage = (dosage) => {
+    setDosageForm(dosage)
     setEditingDosageId(dosage.id)
   }
 
-  const handleChildDelete = async (id) => {
-    try {
-      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
-      const res = await fetch(`${API_URL}/children/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers,
-      })
-      if (res.ok) {
-        await fetchChildren()
-        setError('')
-      } else {
-        setError('Failed to delete child')
-      }
-    } catch (err) {
-      setError('Error deleting child')
-    }
-  }
-
-  const handleDosageDelete = async (id) => {
-    try {
-      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
-      const res = await fetch(`${API_URL}/dosages/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers,
-      })
-      if (res.ok) {
-        await fetchDosages()
-        setError('')
-      } else {
-        setError('Failed to delete dosage')
-      }
-    } catch (err) {
-      setError('Error deleting dosage')
-    }
+  const cancelEdit = () => {
+    setChildForm({
+      name: '', age: '', gender: '', conditions: '', allergies: '', milestones: '',
+      behavioral_notes: '', emergency_contacts: '', medical_history: ''
+    })
+    setDosageForm({
+      child_id: '', medication: '', condition: '', start_date: '', dosage: '',
+      frequency: 'daily', intervals: [], status: 'active', notes: ''
+    })
+    setEditingChildId(null)
+    setEditingDosageId(null)
+    setError('')
   }
 
   const tabs = [
-    { id: 'caregiver', label: 'Caregiver' },
-    { id: 'child', label: 'Child' },
-    { id: 'dosage', label: 'Dosage' },
+    { id: 'caregiver', label: 'Caregiver Profile' },
+    { id: 'children', label: 'Children' },
+    { id: 'dosages', label: 'Dosages' },
   ]
 
-  if (loading) return <div className={`p-6 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>Loading...</div>
+  if (loading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}>
+        <p className={`${isDark ? 'text-teal-400' : 'text-teal-600'}`}>Loading...</p>
+      </div>
+    )
+  }
 
   return (
-    <div className={`min-h-screen p-6 ${isDark ? 'bg-gradient-to-br from-gray-900 via-teal-950 to-gray-800' : 'bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100'}`}>
-      <h1 className={`text-3xl font-bold mb-6 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-        Caregiver & Child Profile
-      </h1>
-      {error && <p className="text-red-500 mb-4">{error}</p>}
-
+    <div className={`min-h-screen p-6 ${isDark ? 'bg-gray-900 text-gray-100' : 'bg-gray-100 text-gray-900'}`}>
+      <h1 className={`text-3xl font-bold mb-6 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>Profile</h1>
+      
       {/* Tabs */}
-      <div className="flex border-b border-teal-200 mb-6">
+      <div className="flex border-b mb-6">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium ${activeTab === tab.id ? (isDark ? 'text-teal-400 border-b-2 border-teal-400' : 'text-teal-600 border-b-2 border-teal-600') : isDark ? 'text-gray-400' : 'text-gray-600'}`}
+            className={`px-4 py-2 font-semibold ${
+              activeTab === tab.id
+                ? isDark
+                  ? 'border-b-2 border-teal-400 text-teal-400'
+                  : 'border-b-2 border-teal-600 text-teal-600'
+                : isDark
+                  ? 'text-gray-400'
+                  : 'text-gray-600'
+            }`}
           >
             {tab.label}
           </button>
         ))}
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <p className={`text-red-500 mb-4 text-sm`}>{error}</p>
+      )}
 
       {/* Caregiver Tab */}
       <AnimatePresence>
@@ -270,525 +309,413 @@ export default function Profile() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className={`p-6 rounded-xl shadow-lg ${isDark ? 'bg-gray-800/80' : 'bg-white/80'} backdrop-blur-md`}
+            className="space-y-6"
           >
-            <h2 className={`text-2xl font-semibold mb-4 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-              Caregiver Profile
-            </h2>
-            {caregiver ? (
-              <form onSubmit={handleCaregiverSubmit} className="space-y-4">
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    value={caregiverForm.name}
-                    onChange={(e) => setCaregiverForm({ ...caregiverForm, name: e.target.value })}
-                    required
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={caregiverForm.email}
-                    onChange={(e) => setCaregiverForm({ ...caregiverForm, email: e.target.value })}
-                    required
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={caregiverForm.phone}
-                    onChange={(e) => setCaregiverForm({ ...caregiverForm, phone: e.target.value })}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Relation to Child
-                  </label>
-                  <input
-                    type="text"
-                    value={caregiverForm.relation_type}
-                    onChange={(e) => setCaregiverForm({ ...caregiverForm, relation_type: e.target.value })}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  />
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  type="submit"
-                  className={`px-4 py-2 rounded-lg ${isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'}`}
-                >
-                  Save
-                </motion.button>
-              </form>
-            ) : (
-              <p className={`text-sm ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
-                No caregiver profile found. Please create one.
-              </p>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Child Tab */}
-      <AnimatePresence>
-        {activeTab === 'child' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className={`p-6 rounded-xl shadow-lg ${isDark ? 'bg-gray-800/80' : 'bg-white/80'} backdrop-blur-md`}
-          >
-            <h2 className={`text-2xl font-semibold mb-4 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-              Child Profile
-            </h2>
-            <form onSubmit={handleChildSubmit} className="space-y-4 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    value={childForm.name}
-                    onChange={(e) => setChildForm({ ...childForm, name: e.target.value })}
-                    required
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Age
-                  </label>
-                  <input
-                    type="number"
-                    value={childForm.age}
-                    onChange={(e) => setChildForm({ ...childForm, age: e.target.value })}
-                    required
-                    min="0"
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Gender
-                  </label>
-                  <select
-                    value={childForm.gender}
-                    onChange={(e) => setChildForm({ ...childForm, gender: e.target.value })}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  >
-                    <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Conditions
-                  </label>
-                  <textarea
-                    value={childForm.conditions}
-                    onChange={(e) => setChildForm({ ...childForm, conditions: e.target.value })}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Allergies
-                  </label>
-                  <textarea
-                    value={childForm.allergies}
-                    onChange={(e) => setChildForm({ ...childForm, allergies: e.target.value })}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Milestones
-                  </label>
-                  <textarea
-                    value={childForm.milestones}
-                    onChange={(e) => setChildForm({ ...childForm, milestones: e.target.value })}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Behavioral Notes
-                  </label>
-                  <textarea
-                    value={childForm.behavioral_notes}
-                    onChange={(e) => setChildForm({ ...childForm, behavioral_notes: e.target.value })}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Emergency Contacts
-                  </label>
-                  <textarea
-                    value={childForm.emergency_contacts}
-                    onChange={(e) => setChildForm({ ...childForm, emergency_contacts: e.target.value })}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Medical History
-                  </label>
-                  <textarea
-                    value={childForm.medical_history}
-                    onChange={(e) => setChildForm({ ...childForm, medical_history: e.target.value })}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                    rows={3}
-                  />
-                </div>
+            <form onSubmit={handleCaregiverSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium">First Name</label>
+                <input
+                  type="text"
+                  value={caregiverForm.first_name}
+                  onChange={(e) => setCaregiverForm({ ...caregiverForm, first_name: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Last Name</label>
+                <input
+                  type="text"
+                  value={caregiverForm.last_name}
+                  onChange={(e) => setCaregiverForm({ ...caregiverForm, last_name: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Email</label>
+                <input
+                  type="email"
+                  value={caregiverForm.email}
+                  disabled
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-500' : 'bg-gray-200 border-gray-300 text-gray-600'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Phone</label>
+                <input
+                  type="text"
+                  value={caregiverForm.phone}
+                  onChange={(e) => setCaregiverForm({ ...caregiverForm, phone: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Relation Type</label>
+                <input
+                  type="text"
+                  value={caregiverForm.relation_type}
+                  onChange={(e) => setCaregiverForm({ ...caregiverForm, relation_type: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
               </div>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 type="submit"
-                className={`px-4 py-2 rounded-lg ${isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md ${
+                  isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'
+                }`}
               >
-                {editingChildId ? 'Update' : 'Add'} Child
+                <FaSave /> Save Profile
               </motion.button>
-              {editingChildId && (
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Children Tab */}
+      <AnimatePresence>
+        {activeTab === 'children' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
+          >
+            <form onSubmit={handleChildSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium">Name</label>
+                <input
+                  type="text"
+                  value={childForm.name}
+                  onChange={(e) => setChildForm({ ...childForm, name: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Age</label>
+                <input
+                  type="number"
+                  value={childForm.age}
+                  onChange={(e) => setChildForm({ ...childForm, age: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Gender</label>
+                <select
+                  value={childForm.gender}
+                  onChange={(e) => setChildForm({ ...childForm, gender: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Conditions</label>
+                <textarea
+                  value={childForm.conditions}
+                  onChange={(e) => setChildForm({ ...childForm, conditions: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Allergies</label>
+                <textarea
+                  value={childForm.allergies}
+                  onChange={(e) => setChildForm({ ...childForm, allergies: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div className="flex gap-4">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  type="button"
-                  onClick={() => {
-                    setChildForm({
-                      name: '', age: '', gender: '', conditions: '', allergies: '', milestones: '',
-                      behavioral_notes: '', emergency_contacts: '', medical_history: ''
-                    })
-                    setEditingChildId(null)
-                  }}
-                  className={`ml-2 px-4 py-2 rounded-lg ${isDark ? 'bg-gray-600 text-teal-200 hover:bg-gray-500' : 'bg-teal-200 text-teal-800 hover:bg-teal-300'}`}
+                  type="submit"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md ${
+                    isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'
+                  }`}
                 >
-                  Cancel
+                  <FaSave /> {editingChildId ? 'Update Child' : 'Add Child'}
                 </motion.button>
-              )}
+                {editingChildId && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="button"
+                    onClick={cancelEdit}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md ${
+                      isDark ? 'bg-gray-600 text-gray-100 hover:bg-gray-700' : 'bg-gray-400 text-white hover:bg-gray-500'
+                    }`}
+                  >
+                    <FaTimes /> Cancel
+                  </motion.button>
+                )}
+              </div>
             </form>
+
             <div className="space-y-4">
               {children.map((child) => (
-                <div
+                <motion.div
                   key={child.id}
-                  className={`p-4 rounded-lg shadow-md ${isDark ? 'bg-gray-700' : 'bg-teal-50'}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className={`p-4 rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                  }`}
                 >
                   <div className="flex justify-between items-center">
-                    <h3 className={`text-lg font-semibold ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-                      {child.name} (Age: {child.age})
-                    </h3>
+                    <div>
+                      <h3 className="text-lg font-semibold">{child.name}</h3>
+                      <p className="text-sm">Age: {child.age || 'N/A'}</p>
+                      <p className="text-sm">Gender: {child.gender || 'N/A'}</p>
+                      <p className="text-sm">Conditions: {child.conditions || 'None'}</p>
+                    </div>
                     <div className="flex gap-2">
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => handleChildEdit(child)}
-                        className={`p-2 rounded-full ${isDark ? 'bg-teal-600 text-teal-100' : 'bg-teal-500 text-white'}`}
+                        onClick={() => editChild(child)}
+                        className={`p-2 rounded-full ${
+                          isDark ? 'bg-teal-600 text-teal-100' : 'bg-teal-500 text-white'
+                        }`}
                       >
                         <FaEdit />
                       </motion.button>
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => handleChildDelete(child.id)}
-                        className="p-2 rounded-full bg-red-500 text-white"
+                        onClick={() => handleDeleteChild(child.id)}
+                        className={`p-2 rounded-full ${
+                          isDark ? 'bg-red-600 text-red-100' : 'bg-red-500 text-white'
+                        }`}
                       >
                         <FaTrash />
                       </motion.button>
                     </div>
                   </div>
-                  <p className={`text-sm ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
-                    Gender: {child.gender || 'N/A'}<br />
-                    Conditions: {child.conditions || 'N/A'}<br />
-                    Allergies: {child.allergies || 'N/A'}<br />
-                    Milestones: {child.milestones || 'N/A'}<br />
-                    Behavioral Notes: {child.behavioral_notes || 'N/A'}<br />
-                    Emergency Contacts: {child.emergency_contacts || 'N/A'}<br />
-                    Medical History: {child.medical_history || 'N/A'}
-                  </p>
-                </div>
+                </motion.div>
               ))}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Dosage Tab */}
+      {/* Dosages Tab */}
       <AnimatePresence>
-        {activeTab === 'dosage' && (
+        {activeTab === 'dosages' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className={`p-6 rounded-xl shadow-lg ${isDark ? 'bg-gray-800/80' : 'bg-white/80'} backdrop-blur-md`}
+            className="space-y-6"
           >
-            <h2 className={`text-2xl font-semibold mb-4 ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
-              Dosage Tracking
-            </h2>
-            <form onSubmit={handleDosageSubmit} className="space-y-4 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Child
-                  </label>
-                  <select
-                    value={dosageForm.child_id}
-                    onChange={(e) => setDosageForm({ ...dosageForm, child_id: e.target.value })}
-                    required
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  >
-                    <option value="">Select Child</option>
-                    {children.map((child) => (
-                      <option key={child.id} value={child.id}>{child.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Medication
-                  </label>
-                  <input
-                    type="text"
-                    value={dosageForm.medication}
-                    onChange={(e) => setDosageForm({ ...dosageForm, medication: e.target.value })}
-                    required
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Condition
-                  </label>
-                  <input
-                    type="text"
-                    value={dosageForm.condition}
-                    onChange={(e) => setDosageForm({ ...dosageForm, condition: e.target.value })}
-                    required
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={dosageForm.start_date}
-                    onChange={(e) => setDosageForm({ ...dosageForm, start_date: e.target.value })}
-                    required
-                    max={new Date().toISOString().split('T')[0]}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Dosage
-                  </label>
-                  <input
-                    type="text"
-                    value={dosageForm.dosage}
-                    onChange={(e) => setDosageForm({ ...dosageForm, dosage: e.target.value })}
-                    required
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  />
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Frequency
-                  </label>
-                  <select
-                    value={dosageForm.frequency}
-                    onChange={(e) => setDosageForm({ ...dosageForm, frequency: e.target.value, intervals: [] })}
-                    required
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  >
-                    <option value="">Select</option>
-                    <option value="daily">Daily</option>
-                    <option value="every_x_hours">Every X Hours</option>
-                    <option value="specific_days">Specific Days</option>
-                  </select>
-                </div>
-                {dosageForm.frequency === 'daily' && (
-                  <div>
-                    <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                      Time
-                    </label>
-                    <input
-                      type="time"
-                      value={dosageForm.intervals[0] || ''}
-                      onChange={(e) => setDosageForm({ ...dosageForm, intervals: [e.target.value] })}
-                      className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                    />
-                  </div>
-                )}
-                {dosageForm.frequency === 'specific_days' && (
-                  <div>
-                    <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                      Days
-                    </label>
-                    <input
-                      type="time"
-                      value={dosageForm.intervals[0] || ''}
-                      onChange={(e) => {
-                        const newIntervals = [...dosageForm.intervals]
-                        newIntervals[0] = e.target.value
-                        setDosageForm({ ...dosageForm, intervals: newIntervals })
-                      }}
-                      className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                    />
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                      <label key={day} className="flex items-center mt-2">
-                        <input
-                          type="checkbox"
-                          checked={dosageForm.intervals.includes(day)}
-                          onChange={(e) => {
-                            const newIntervals = e.target.checked
-                              ? [...dosageForm.intervals, day]
-                              : dosageForm.intervals.filter((d) => d !== day)
-                            setDosageForm({ ...dosageForm, intervals: newIntervals })
-                          }}
-                          className="mr-2"
-                        />
-                        {day}
-                      </label>
-                    ))}
-                  </div>
-                )}
-                {dosageForm.frequency === 'every_x_hours' && (
-                  <div>
-                    <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                      Hours
-                    </label>
-                    <input
-                      type="number"
-                      value={dosageForm.intervals[0] || ''}
-                      onChange={(e) => setDosageForm({ ...dosageForm, intervals: [e.target.value] })}
-                      min="1"
-                      className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                    />
-                  </div>
-                )}
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Status
-                  </label>
-                  <select
-                    value={dosageForm.status}
-                    onChange={(e) => setDosageForm({ ...dosageForm, status: e.target.value })}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={`block text-sm font-medium ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                    Notes
-                  </label>
-                  <textarea
-                    value={dosageForm.notes}
-                    onChange={(e) => setDosageForm({ ...dosageForm, notes: e.target.value })}
-                    className={`w-full p-2 mt-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-teal-100' : 'bg-teal-50 border-teal-200 text-teal-900'}`}
-                    rows={3}
-                  />
-                </div>
+            <form onSubmit={handleDosageSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium">Child</label>
+                <select
+                  value={dosageForm.child_id}
+                  onChange={(e) => setDosageForm({ ...dosageForm, child_id: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                  required
+                >
+                  <option value="">Select Child</option>
+                  {children.map((child) => (
+                    <option key={child.id} value={child.id}>{child.name}</option>
+                  ))}
+                </select>
               </div>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                type="submit"
-                className={`px-4 py-2 rounded-lg ${isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'}`}
-              >
-                {editingDosageId ? 'Update' : 'Add'} Dosage
-              </motion.button>
-              {editingDosageId && (
+              <div>
+                <label className="block text-sm font-medium">Medication</label>
+                <input
+                  type="text"
+                  value={dosageForm.medication}
+                  onChange={(e) => setDosageForm({ ...dosageForm, medication: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Condition</label>
+                <input
+                  type="text"
+                  value={dosageForm.condition}
+                  onChange={(e) => setDosageForm({ ...dosageForm, condition: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Start Date</label>
+                <input
+                  type="date"
+                  value={dosageForm.start_date}
+                  onChange={(e) => setDosageForm({ ...dosageForm, start_date: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Dosage</label>
+                <input
+                  type="text"
+                  value={dosageForm.dosage}
+                  onChange={(e) => setDosageForm({ ...dosageForm, dosage: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Frequency</label>
+                <select
+                  value={dosageForm.frequency}
+                  onChange={(e) => setDosageForm({ ...dosageForm, frequency: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="daily">Daily</option>
+                  <option value="specific_days">Specific Days</option>
+                  <option value="every_x_hours">Every X Hours</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Intervals (e.g., 08:00, or hours for every_x_hours)</label>
+                <input
+                  type="text"
+                  value={dosageForm.intervals.join(',')}
+                  onChange={(e) => setDosageForm({ ...dosageForm, intervals: e.target.value.split(',').map((i) => i.trim()) })}
+                  placeholder="e.g., 08:00, 20:00 or 4 for every 4 hours"
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Status</label>
+                <select
+                  value={dosageForm.status}
+                  onChange={(e) => setDosageForm({ ...dosageForm, status: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Notes</label>
+                <textarea
+                  value={dosageForm.notes}
+                  onChange={(e) => setDosageForm({ ...dosageForm, notes: e.target.value })}
+                  className={`mt-1 p-2 w-full rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div className="flex gap-4">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  type="button"
-                  onClick={() => {
-                    setDosageForm({
-                      child_id: '', medication: '', condition: '', start_date: '', dosage: '',
-                      frequency: '', intervals: [], status: 'active', notes: ''
-                    })
-                    setEditingDosageId(null)
-                  }}
-                  className={`ml-2 px-4 py-2 rounded-lg ${isDark ? 'bg-gray-600 text-teal-200 hover:bg-gray-500' : 'bg-teal-200 text-teal-800 hover:bg-teal-300'}`}
+                  type="submit"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md ${
+                    isDark ? 'bg-teal-600 text-teal-100 hover:bg-teal-700' : 'bg-teal-500 text-white hover:bg-teal-600'
+                  }`}
                 >
-                  Cancel
+                  <FaSave /> {editingDosageId ? 'Update Dosage' : 'Add Dosage'}
                 </motion.button>
-              )}
+                {editingDosageId && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="button"
+                    onClick={cancelEdit}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md ${
+                      isDark ? 'bg-gray-600 text-gray-100 hover:bg-gray-700' : 'bg-gray-400 text-white hover:bg-gray-500'
+                    }`}
+                  >
+                    <FaTimes /> Cancel
+                  </motion.button>
+                )}
+              </div>
             </form>
-            <div className="overflow-x-auto">
-              <table className={`w-full text-sm ${isDark ? 'text-teal-200' : 'text-teal-700'}`}>
-                <thead>
-                  <tr className={`border-b ${isDark ? 'border-gray-600' : 'border-teal-200'}`}>
-                    <th className="p-2 text-left">Child</th>
-                    <th className="p-2 text-left">Medication</th>
-                    <th className="p-2 text-left">Condition</th>
-                    <th className="p-2 text-left">Start Date</th>
-                    <th className="p-2 text-left">Dosage</th>
-                    <th className="p-2 text-left">Frequency</th>
-                    <th className="p-2 text-left">Intervals</th>
-                    <th className="p-2 text-left">Status</th>
-                    <th className="p-2 text-left">Notes</th>
-                    <th className="p-2 text-left">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dosages.map((dosage) => (
-                    <tr key={dosage.id} className={`border-b ${isDark ? 'border-gray-600' : 'border-teal-200'}`}>
-                      <td className="p-2">{children.find(c => c.id === dosage.child_id)?.name || 'N/A'}</td>
-                      <td className="p-2">{dosage.medication}</td>
-                      <td className="p-2">{dosage.condition}</td>
-                      <td className="p-2">{dosage.start_date}</td>
-                      <td className="p-2">{dosage.dosage}</td>
-                      <td className="p-2">{dosage.frequency}</td>
-                      <td className="p-2">{dosage.intervals?.join(', ') || 'N/A'}</td>
-                      <td className="p-2">{dosage.status}</td>
-                      <td className="p-2">{dosage.notes || 'N/A'}</td>
-                      <td className="p-2 flex gap-2">
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => handleDosageEdit(dosage)}
-                          className={`p-2 rounded-full ${isDark ? 'bg-teal-600 text-teal-100' : 'bg-teal-500 text-white'}`}
-                        >
-                          <FaEdit />
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => handleDosageDelete(dosage.id)}
-                          className="p-2 rounded-full bg-red-500 text-white"
-                        >
-                          <FaTrash />
-                        </motion.button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+            <div className="space-y-4">
+              {dosages.map((dosage) => (
+                <motion.div
+                  key={dosage.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className={`p-4 rounded-md border ${
+                    isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-lg font-semibold">{dosage.medication}</h3>
+                      <p className="text-sm">Child ID: {dosage.child_id}</p>
+                      <p className="text-sm">Condition: {dosage.condition || 'N/A'}</p>
+                      <p className="text-sm">Dosage: {dosage.dosage}</p>
+                      <p className="text-sm">Frequency: {dosage.frequency}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => editDosage(dosage)}
+                        className={`p-2 rounded-full ${
+                          isDark ? 'bg-teal-600 text-teal-100' : 'bg-teal-500 text-white'
+                        }`}
+                      >
+                        <FaEdit />
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => handleDeleteDosage(dosage.id)}
+                        className={`p-2 rounded-full ${
+                          isDark ? 'bg-red-600 text-red-100' : 'bg-red-500 text-white'
+                        }`}
+                      >
+                        <FaTrash />
+                      </motion.button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </motion.div>
         )}

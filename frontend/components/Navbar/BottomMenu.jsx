@@ -21,38 +21,43 @@ export default function BottomMenu({
   const [notificationPermission, setNotificationPermission] = useState('default')
   const [dosages, setDosages] = useState([])
   const [dosageError, setDosageError] = useState(null)
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://195.7.7.15:8002'
+
+  console.log('BottomMenu: Rendering, user:', user)
 
   useEffect(() => {
-    if (user) {
+    if (user?.email) {
       fetchDosages()
+    } else {
+      setDosages([])
+      setDosageError(null)
     }
   }, [user])
 
   const fetchDosages = async () => {
     try {
-      const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
-      const res = await fetch(`${API_URL}/dosages`, {
-        credentials: 'include',
-        headers,
+      if (!user?.email) {
+        throw new Error('No user email available')
+      }
+      const res = await fetch(`${API_URL}/dosages?email=${encodeURIComponent(user.email)}`, {
+        method: 'GET',
       })
       if (!res.ok) {
         if (res.status === 404) {
           setDosages([])
           setDosageError('No dosages found. Add a child profile first.')
-        } else if (res.status === 401) {
-          setDosageError('Authentication failed. Please log in again.')
         } else {
-          throw new Error('Failed to fetch dosages')
+          throw new Error(`Failed to fetch dosages: ${res.status}`)
         }
       } else {
         const data = await res.json()
         setDosages(data)
         setDosageError(null)
+        console.log('BottomMenu: Dosages fetched:', data)
       }
     } catch (err) {
       setDosageError(err.message)
-      console.log('Error fetching dosages:', err)
+      console.error('BottomMenu: Error fetching dosages:', err)
     }
   }
 
@@ -70,7 +75,7 @@ export default function BottomMenu({
     const checkDosages = () => {
       const now = new Date()
       const currentDay = now.toLocaleString('en-US', { weekday: 'long' })
-      const currentTime = now.toTimeString().slice(0, 5) // HH:MM
+      const currentTime = now.toTimeString().slice(0, 5)
 
       dosages.forEach((dosage) => {
         if (dosage.status !== 'active') return
@@ -130,7 +135,7 @@ export default function BottomMenu({
       icon: (
         <div className="relative">
           <FaBell className="h-6 w-6" />
-          {notifications.length > 0 && (
+          {user && notifications.length > 0 && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
               {notifications.length}
             </span>
@@ -144,7 +149,12 @@ export default function BottomMenu({
   ]
 
   const handleTabClick = (tabId, route) => {
-    console.log(`Navigating to ${route} for tab ${tabId}`)
+    console.log(`BottomMenu: Tab clicked: ${tabId}, route: ${route}, user:`, user)
+    if (!user) {
+      console.log('BottomMenu: No user, redirecting to /auth/login')
+      router.push('/auth/login')
+      return
+    }
     setActiveTab(tabId)
     if (tabId === 'notifications') {
       onToggle()
@@ -160,7 +170,7 @@ export default function BottomMenu({
       } shadow-lg pb-safe`}
     >
       <AnimatePresence>
-        {showNotifications && (
+        {showNotifications && user && (
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}

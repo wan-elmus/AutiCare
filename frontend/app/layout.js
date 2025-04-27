@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/context/ThemeContext'
@@ -22,97 +23,101 @@ export default function RootLayout({ children }) {
   const [notifications, setNotifications] = useState([])
   const [notificationError, setNotificationError] = useState(null)
   const [showNotifications, setShowNotifications] = useState(false)
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://195.7.7.15:8002'
+
+  const createCaregiverProfile = async (userData) => {
+    try {
+      const res = await fetch(`${API_URL}/caregivers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userData.id,
+          name: `${userData.first_name} ${userData.last_name}`.trim() || 'Unknown',
+          email: userData.email,
+          phone: '', // Default empty as per model
+          relation_type: '' // Default empty as per model
+        }),
+      })
+      if (res.ok) {
+        console.log('RootLayout: Caregiver profile created:', userData.email)
+      } else if (res.status !== 409) {
+        console.error('RootLayout: Failed to create caregiver profile, status:', res.status)
+      }
+    } catch (err) {
+      console.error('RootLayout: Error creating caregiver profile:', err)
+    }
+  }
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const initializeUser = async () => {
       try {
-        const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
-        const res = await fetch(`${API_URL}/users/me`, {
-          credentials: 'include',
-          headers,
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setUser(data)
-          await createCaregiverProfile(data)
+        const storedUser = localStorage.getItem('user')
+        console.log('RootLayout: Stored user from localStorage:', storedUser)
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser)
+          // Verify user session
+          const res = await fetch(`${API_URL}/users/me?email=${encodeURIComponent(parsedUser.email)}`)
+          if (res.ok) {
+            const userData = await res.json()
+            console.log('RootLayout: User fetched successfully:', userData)
+            setUser(userData)
+            localStorage.setItem('user', JSON.stringify(userData))
+            await createCaregiverProfile(userData)
+          } else {
+            console.error('RootLayout: Failed to verify user, status:', res.status)
+            setUser(null)
+            localStorage.removeItem('user')
+            localStorage.removeItem('user_email') // Clean up legacy key
+          }
         } else {
-          console.log('No active user session')
+          console.log('RootLayout: No user in storage')
           setUser(null)
+          localStorage.removeItem('user_email') // Clean up legacy key
         }
       } catch (err) {
-        console.error('Error fetching user:', err)
+        console.error('RootLayout: Error initializing user:', err)
         setUser(null)
+        localStorage.removeItem('user')
+        localStorage.removeItem('user_email')
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    const createCaregiverProfile = async (userData) => {
-      try {
-        const headers = userData?.access_token ? { 'Authorization': `Bearer ${userData.access_token}` } : {}
-        const res = await fetch(`${API_URL}/caregivers/me`, {
-          credentials: 'include',
-          headers,
-        })
-        if (res.status === 404) {
-          const caregiverData = {
-            name: `${userData.first_name} ${userData.last_name}`,
-            email: userData.email,
-            phone: null,
-            relation_type: 'Parent',
-          }
-          const caregiverRes = await fetch(`${API_URL}/caregivers/me`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', ...headers },
-            credentials: 'include',
-            body: JSON.stringify(caregiverData),
-          })
-          if (!caregiverRes.ok) throw new Error(`Failed to create caregiver: ${caregiverRes.status}`)
-          console.log('Created caregiver profile')
-
-          // Create a Child record
-          const childData = {
-            name: 'Test Child',
-            age: 5,
-            gender: 'Other',
-            conditions: '',
-            allergies: '',
-            milestones: '',
-            behavioral_notes: '',
-            emergency_contacts: '',
-            medical_history: '',
-          }
-          const childRes = await fetch(`${API_URL}/children`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...headers },
-            credentials: 'include',
-            body: JSON.stringify(childData),
-          })
-          if (!childRes.ok) throw new Error(`Failed to create child: ${childRes.status}`)
-          console.log('Created child profile')
-        }
-      } catch (err) {
-        console.error('Error handling caregiver/child profile:', err)
-      }
-    }
-
-    fetchUser()
+    initializeUser()
   }, [API_URL])
 
   useEffect(() => {
+    if (user) {
+      console.log('RootLayout: User state changed:', user)
+      localStorage.setItem('user', JSON.stringify(user))
+    }
+
     const fetchNotifications = async () => {
       try {
-        const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
-        const res = await fetch(`${API_URL}/api/notifications`, {
-          credentials: 'include',
-          headers,
-        })
-        if (!res.ok) throw new Error(`Failed with status ${res.status}`)
-        const data = await res.json()
-        setNotifications(data.notifications || [])
-        setNotificationError(null)
+        if (!user?.email) {
+          setNotifications([])
+          setNotificationError(null)
+          return
+        }
+        const res = await fetch(`${API_URL}/api/notifications?email=${encodeURIComponent(user.email)}`)
+        if (res.ok) {
+          const data = await res.json()
+          setNotifications(data.notifications || [])
+          setNotificationError(null)
+          console.log('RootLayout: Notifications fetched:', data.notifications)
+        } else if (res.status === 404) {
+          setNotifications([])
+          setNotificationError(null)
+          console.log('RootLayout: No notifications found (404)')
+        } else {
+          throw new Error(`Failed with status ${res.status}`)
+        }
       } catch (err) {
         setNotificationError('Failed to load notifications')
-        console.error('Notification error:', err)
+        console.error('RootLayout: Notification error:', err)
       }
     }
 
@@ -120,6 +125,11 @@ export default function RootLayout({ children }) {
       fetchNotifications()
       const interval = setInterval(fetchNotifications, 60000)
       return () => clearInterval(interval)
+    } else {
+      setNotifications([])
+      setNotificationError(null)
+      setShowNotifications(false)
+      console.log('RootLayout: Cleared notifications due to no user')
     }
   }, [user, API_URL])
 
@@ -127,49 +137,61 @@ export default function RootLayout({ children }) {
     toggle: () => setShowNotifications((prev) => !prev),
     dismiss: async (id) => {
       try {
-        const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
-        const res = await fetch(`${API_URL}/api/notifications/${id}/dismiss`, {
+        const res = await fetch(`${API_URL}/api/notifications/${id}/dismiss?email=${encodeURIComponent(user.email)}`, {
           method: 'PUT',
-          credentials: 'include',
-          headers,
         })
         if (!res.ok) throw new Error('Dismiss failed')
         setNotifications((prev) => prev.filter((n) => n.id !== id))
+        console.log('RootLayout: Dismissed notification:', id)
       } catch (err) {
-        console.error('Dismiss error:', err)
+        console.error('RootLayout: Dismiss error:', err)
       }
     },
     dismissAll: async () => {
       try {
-        const headers = user?.access_token ? { 'Authorization': `Bearer ${user.access_token}` } : {}
-        const res = await fetch(`${API_URL}/api/notifications/dismiss-all`, {
+        const res = await fetch(`${API_URL}/api/notifications/dismiss-all?email=${encodeURIComponent(user.email)}`, {
           method: 'PUT',
-          credentials: 'include',
-          headers,
         })
         if (!res.ok) throw new Error('Bulk dismiss failed')
         setNotifications([])
+        console.log('RootLayout: Dismissed all notifications')
       } catch (err) {
-        console.error('Bulk dismiss error:', err)
+        console.error('RootLayout: Bulk dismiss error:', err)
       }
     },
   }
 
+  console.log('RootLayout: Rendering, user:', user, 'BottomMenu?', !!user)
+
+  if (isLoading) {
+    return (
+      <html lang="en" suppressHydrationWarning>
+        <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-100 dark:bg-gray-900`}>
+          <div className="min-h-screen flex items-center justify-center">
+            <p className="text-teal-600 dark:text-teal-400">Loading...</p>
+          </div>
+        </body>
+      </html>
+    )
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-100 dark:bg-gray-900`}>
         <ThemeProvider>
           <UserProvider value={{ user, setUser }}>
             <WebSocketProvider>
               {children}
-              <BottomMenu
-                notifications={notifications}
-                error={notificationError}
-                show={showNotifications}
-                onToggle={handleNotificationActions.toggle}
-                onDismiss={handleNotificationActions.dismiss}
-                onDismissAll={handleNotificationActions.dismissAll}
-              />
+              {user && (
+                <BottomMenu
+                  notifications={notifications}
+                  error={notificationError}
+                  show={showNotifications}
+                  onToggle={handleNotificationActions.toggle}
+                  onDismiss={handleNotificationActions.dismiss}
+                  onDismissAll={handleNotificationActions.dismissAll}
+                />
+              )}
             </WebSocketProvider>
           </UserProvider>
         </ThemeProvider>
@@ -177,7 +199,6 @@ export default function RootLayout({ children }) {
     </html>
   )
 }
-
 
 
 

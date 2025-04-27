@@ -25,9 +25,40 @@
 // }
 
 // app/page.js
-import LandingPageClient from '../components/LandingPage/LandingPageClient';
+// import LandingPageClient from '../components/LandingPage/LandingPageClient';
+
+// export default function Home() {
+//   // Skip server-side fetch; let client handle it
+//   return <LandingPageClient initialUserProfile={null} />;
+// }
+
+'use client'
+import { useContext, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { UserContext } from '@/context/UserContext'
+import LandingPageClient from '../components/LandingPage/LandingPageClient'
 
 export default function Home() {
-  // Skip server-side fetch; let client handle it
-  return <LandingPageClient initialUserProfile={null} />;
+  const { user } = useContext(UserContext)
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    console.log('Home: UserContext user:', user)
+    if (!user && !loading) {
+      console.log('Home: No user, redirecting to /auth/login')
+      router.push('/auth/login')
+    }
+    setLoading(false)
+  }, [user, router, loading])
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+        <p className="text-teal-600 dark:text-teal-400">Loading...</p>
+      </div>
+    )
+  }
+
+  return <LandingPageClient userProfile={user} />
 }
