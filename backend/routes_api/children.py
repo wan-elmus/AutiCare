@@ -1,12 +1,11 @@
 """
 Manages child-related operations, including CRUD for child profiles.
 """
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.db import get_db
 from database.models import Child, Caregiver, ChildOut, ChildCreate, ChildUpdate
-from utils.auth import get_current_user
 from typing import List
 import logging
 
@@ -16,13 +15,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("children")
 
 @router.get("/", response_model=List[ChildOut])
-async def get_children(request: Request, db: AsyncSession = Depends(get_db)):
-    token = request.cookies.get("token")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    result = await db.execute(select(Caregiver).filter(Caregiver.user_id == current_user.id))
+async def get_children(email: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
     caregiver = result.scalars().first()
     if not caregiver:
         raise HTTPException(status_code=404, detail="Caregiver not found")
@@ -34,15 +28,10 @@ async def get_children(request: Request, db: AsyncSession = Depends(get_db)):
 @router.post("/", response_model=ChildOut)
 async def create_child(
     child: ChildCreate,
-    request: Request,
+    email: str,
     db: AsyncSession = Depends(get_db)
 ):
-    token = request.cookies.get("token")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    result = await db.execute(select(Caregiver).filter(Caregiver.user_id == current_user.id))
+    result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
     caregiver = result.scalars().first()
     if not caregiver:
         raise HTTPException(status_code=404, detail="Caregiver not found")
@@ -57,15 +46,10 @@ async def create_child(
 async def update_child(
     id: int,
     child_update: ChildUpdate,
-    request: Request,
+    email: str,
     db: AsyncSession = Depends(get_db)
 ):
-    token = request.cookies.get("token")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    result = await db.execute(select(Caregiver).filter(Caregiver.user_id == current_user.id))
+    result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
     caregiver = result.scalars().first()
     if not caregiver:
         raise HTTPException(status_code=404, detail="Caregiver not found")
@@ -84,15 +68,10 @@ async def update_child(
 @router.delete("/{id}")
 async def delete_child(
     id: int,
-    request: Request,
+    email: str,
     db: AsyncSession = Depends(get_db)
 ):
-    token = request.cookies.get("token")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    result = await db.execute(select(Caregiver).filter(Caregiver.user_id == current_user.id))
+    result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
     caregiver = result.scalars().first()
     if not caregiver:
         raise HTTPException(status_code=404, detail="Caregiver not found")

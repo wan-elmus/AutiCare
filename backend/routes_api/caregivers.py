@@ -1,12 +1,11 @@
 """
 Manages caregiver-related operations, including retrieving and updating caregiver profiles.
 """
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.db import get_db
 from database.models import Caregiver, CaregiverOut, CaregiverUpdate
-from utils.auth import get_current_user
 import logging
 
 router = APIRouter(prefix="/caregivers", tags=["caregivers"])
@@ -15,13 +14,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("caregivers")
 
 @router.get("/me", response_model=CaregiverOut)
-async def get_caregiver(request: Request, db: AsyncSession = Depends(get_db)):
-    token = request.cookies.get("token")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    result = await db.execute(select(Caregiver).filter(Caregiver.user_id == current_user.id))
+async def get_caregiver(email: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
     caregiver = result.scalars().first()
     if not caregiver:
         raise HTTPException(status_code=404, detail="Caregiver not found")
@@ -30,15 +24,10 @@ async def get_caregiver(request: Request, db: AsyncSession = Depends(get_db)):
 @router.put("/me", response_model=CaregiverOut)
 async def update_caregiver(
     caregiver_update: CaregiverUpdate,
-    request: Request,
+    email: str,
     db: AsyncSession = Depends(get_db)
 ):
-    token = request.cookies.get("token")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    result = await db.execute(select(Caregiver).filter(Caregiver.user_id == current_user.id))
+    result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
     caregiver = result.scalars().first()
     if not caregiver:
         raise HTTPException(status_code=404, detail="Caregiver not found")

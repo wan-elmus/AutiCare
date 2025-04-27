@@ -1,12 +1,11 @@
 """
 Manages dosage-related operations, including CRUD for medication dosages.
 """
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.db import get_db
 from database.models import Dosage, Child, Caregiver, DosageOut, DosageCreate, DosageUpdate
-from utils.auth import get_current_user
 from typing import List
 import logging
 
@@ -16,13 +15,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("dosages")
 
 @router.get("/", response_model=List[DosageOut])
-async def get_dosages(request: Request, db: AsyncSession = Depends(get_db)):
-    token = request.cookies.get("token")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    result = await db.execute(select(Caregiver).filter(Caregiver.user_id == current_user.id))
+async def get_dosages(email: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
     caregiver = result.scalars().first()
     if not caregiver:
         raise HTTPException(status_code=404, detail="Caregiver not found")
@@ -38,15 +32,10 @@ async def get_dosages(request: Request, db: AsyncSession = Depends(get_db)):
 @router.post("/", response_model=DosageOut)
 async def create_dosage(
     dosage: DosageCreate,
-    request: Request,
+    email: str,
     db: AsyncSession = Depends(get_db)
 ):
-    token = request.cookies.get("token")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    result = await db.execute(select(Caregiver).filter(Caregiver.user_id == current_user.id))
+    result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
     caregiver = result.scalars().first()
     if not caregiver:
         raise HTTPException(status_code=404, detail="Caregiver not found")
@@ -66,15 +55,10 @@ async def create_dosage(
 async def update_dosage(
     id: int,
     dosage_update: DosageUpdate,
-    request: Request,
+    email: str,
     db: AsyncSession = Depends(get_db)
 ):
-    token = request.cookies.get("token")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    result = await db.execute(select(Caregiver).filter(Caregiver.user_id == current_user.id))
+    result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
     caregiver = result.scalars().first()
     if not caregiver:
         raise HTTPException(status_code=404, detail="Caregiver not found")
@@ -96,15 +80,10 @@ async def update_dosage(
 @router.delete("/{id}")
 async def delete_dosage(
     id: int,
-    request: Request,
+    email: str,
     db: AsyncSession = Depends(get_db)
 ):
-    token = request.cookies.get("token")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    result = await db.execute(select(Caregiver).filter(Caregiver.user_id == current_user.id))
+    result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
     caregiver = result.scalars().first()
     if not caregiver:
         raise HTTPException(status_code=404, detail="Caregiver not found")

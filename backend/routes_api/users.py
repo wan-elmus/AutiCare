@@ -36,46 +36,47 @@ class UserCreate(BaseModel):
     
 @router.get("/users/me")
 async def get_current_user_details(
-    token: str = None, 
+    email: str,
     db: AsyncSession = Depends(get_db),
 ):
-    if not token:
-        raise HTTPException(status_code=401, detail="Token not provided")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email not provided")
+    result = await db.execute(select(User).filter(User.email == email))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     
     return {
-        "id": current_user.id,
-        "first_name": current_user.first_name,
-        "last_name": current_user.last_name,
-        "email": current_user.email,
-        "access_token": token
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "email": user.email,
     }
 
 @router.put("/users/me")
 async def update_user(
-    user_data: UserUpdate, 
-    token: str = None,
+    user_data: UserUpdate,
+    email: str,
     db: AsyncSession = Depends(get_db),
 ):
-    if not token:
-        raise HTTPException(status_code=401, detail="Token not provided")
-    current_user = await get_current_user(token=token, db=db)
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email not provided")
+    result = await db.execute(select(User).filter(User.email == email))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     
-    if user_data.email:
-        existing_user = await db.execute(select(User).where(User.email == user_data.email, User.id != current_user.id))
+    if user_data.email and user_data.email != email:
+        existing_user = await db.execute(select(User).where(User.email == user_data.email, User.id != user.id))
         if existing_user.scalar():
             raise HTTPException(status_code=400, detail="Email already registered")
     
     update_data = user_data.dict(exclude_unset=True)
     if "password" in update_data:
-        current_user.hashed_password = pwd_context.hash(update_data.pop("password"))
+        user.hashed_password = pwd_context.hash(update_data.pop("password"))
     
     for key, value in update_data.items():
-        setattr(current_user, key, value)
+        setattr(user, key, value)
     
     await db.commit()
     return {"message": "User updated successfully"}
