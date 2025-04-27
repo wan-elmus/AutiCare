@@ -10,13 +10,11 @@ from database.db import get_db
 from database.models import User, Child, SensorData, Prediction, Dosage
 from typing import List, Optional
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
-# Configure Gemini API
 configure(api_key=os.getenv("GEMINI_API_KEY"))
 gemini_model = GenerativeModel("gemini-1.5-flash")
 
@@ -35,7 +33,6 @@ class Insight(BaseModel):
 class InsightsResponse(BaseModel):
     insights: List[Insight]
 
-# Helper functions
 def format_medication(d):
     """Helper function to properly format medication information"""
     return f"{d['medication']} ({d['frequency']})"
@@ -134,21 +131,21 @@ async def chat(request: ChatRequest, email: str, db: AsyncSession = Depends(get_
     predictions = await get_recent_predictions(email, db)
     dosages = await get_dosages(email, db)
 
-    # Construct context per child
+    # context per child
     context = []
     for child in children:
         child_context = [
             f"Child: {child['name']}, Age: {child['age']}, Conditions: {child['conditions'] or 'None'}, "
             f"Behavioral Notes: {child['behavioral_notes'] or 'None'}"
         ]
-        child_sensor_data = [d for d in sensor_data]  # Filter if sensor data is child-specific in future
+        child_sensor_data = [d for d in sensor_data]  
         if child_sensor_data:
             latest_sensor = child_sensor_data[0]
             child_context.append(
                 f"Latest Sensor Data (last 12h): GSR: {latest_sensor['gsr']}, Heart Rate: {latest_sensor['heart_rate']} bpm, "
                 f"Temperature: {latest_sensor['temperature']}°C"
             )
-        child_predictions = [p for p in predictions]  # Filter if predictions are child-specific
+        child_predictions = [p for p in predictions]  
         if child_predictions:
             latest_pred = child_predictions[0]
             child_context.append(f"Latest Stress Level (last 12h): {latest_pred['stress_level']}")
@@ -159,7 +156,6 @@ async def chat(request: ChatRequest, email: str, db: AsyncSession = Depends(get_
             )
         context.append("; ".join(child_context))
 
-    # Enhanced prompt
     prompt = (
         "You are AutiCare's AI assistant, an expert in autism spectrum disorder (ASD) care, drawing from CDC guidelines, "
         "Autism Speaks, National Autism Association, and 2025 research. AutiCare is a real-time monitoring platform for "
@@ -219,16 +215,16 @@ async def get_insights(email: str, db: AsyncSession = Depends(get_db)):
         logger.info(f"No insights generated for {email}: Insufficient data")
         return InsightsResponse(insights=[])
 
-    # Analyze data for insights
+
     insights = []
     for child in children:
         context = [f"Child: {child['name']}, Age: {child['age']}, Conditions: {child['conditions'] or 'None'}"]
-        child_sensor_data = [d for d in sensor_data]  # Filter if sensor data is child-specific
+        child_sensor_data = [d for d in sensor_data]  
         if child_sensor_data:
             hr_mean = sum(d['heart_rate'] for d in child_sensor_data) / len(child_sensor_data)
             gsr_mean = sum(d['gsr'] for d in child_sensor_data) / len(child_sensor_data)
             context.append(f"12h Avg Heart Rate: {hr_mean:.1f} bpm, Avg GSR: {gsr_mean:.2f}")
-        child_predictions = [p for p in predictions]  # Filter if predictions are child-specific
+        child_predictions = [p for p in predictions]  
         if child_predictions:
             stress_levels = [p['stress_level'] for p in child_predictions]
             latest_stress = child_predictions[0]['stress_level']
