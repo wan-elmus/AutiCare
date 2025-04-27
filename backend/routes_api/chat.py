@@ -16,7 +16,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["chat"])
 
 # Configure Gemini API
-configure(api_key=os.getenv("GEMINI_API_KEY"))
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    logger.error("GEMINI_API_KEY not found in environment variables")
+    raise ValueError("GEMINI_API_KEY is required")
+configure(api_key=GEMINI_API_KEY)
 gemini_model = GenerativeModel("gemini-1.5-flash")
 
 # Pydantic models
@@ -144,7 +148,7 @@ async def chat(request: ChatRequest, email: str, db: Session = Depends(get_db)):
         child_dosages = [d for d in dosages if d['child_id'] == child['id']]
         if child_dosages:
             child_context.append(
-                f"Medications: {', '.join([f'{d['medication']} ({d['frequency']})' for d in child_dosages])}"
+                f"Medications: {', '.join(f'{d['medication']} ({d['frequency']})' for d in child_dosages)}"
             )
         context.append("; ".join(child_context))
 
