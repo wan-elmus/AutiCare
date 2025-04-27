@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import os
 import logging
 from google.generativeai import configure, GenerativeModel
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from database.db import get_db
 from database.models import User, Child, SensorData, Prediction, Dosage
 from typing import List, Optional
@@ -39,17 +40,19 @@ def format_medication(d):
     """Helper function to properly format medication information"""
     return f"{d['medication']} ({d['frequency']})"
 
-async def get_user_by_email(email: str, db: Session) -> Optional[User]:
-    user = db.query(User).filter(User.email == email).first()
+async def get_user_by_email(email: str, db: AsyncSession) -> Optional[User]:
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalars().first()
     if not user:
         logger.warning(f"User not found for email: {email}")
     return user
 
-async def get_child_data(email: str, db: Session) -> List[dict]:
+async def get_child_data(email: str, db: AsyncSession) -> List[dict]:
     user = await get_user_by_email(email, db)
     if not user:
         return []
-    children = db.query(Child).filter(Child.caregiver_id == user.id).all()
+    result = await db.execute(select(Child).where(Child.caregiver_id == user.id))
+    children = result.scalars().all()
     return [
         {
             "id": child.id,
@@ -61,18 +64,18 @@ async def get_child_data(email: str, db: Session) -> List[dict]:
         for child in children
     ]
 
-async def get_recent_sensor_data(email: str, db: Session) -> List[dict]:
+async def get_recent_sensor_data(email: str, db: AsyncSession) -> List[dict]:
     user = await get_user_by_email(email, db)
     if not user:
         return []
     twelve_hours_ago = datetime.utcnow() - timedelta(hours=12)
-    sensor_data = (
-        db.query(SensorData)
-        .filter(SensorData.user_id == user.id, SensorData.timestamp >= twelve_hours_ago)
+    result = await db.execute(
+        select(SensorData)
+        .where(SensorData.user_id == user.id, SensorData.timestamp >= twelve_hours_ago)
         .order_by(SensorData.timestamp.desc())
         .limit(10)
-        .all()
     )
+    sensor_data = result.scalars().all()
     return [
         {
             "gsr": data.gsr,
@@ -83,27 +86,31 @@ async def get_recent_sensor_data(email: str, db: Session) -> List[dict]:
         for data in sensor_data
     ]
 
-async def get_recent_predictions(email: str, db: Session) -> List[dict]:
+async def get_recent_predictions(email: str, db: AsyncSession) -> List[dict]:
     user = await get_user_by_email(email, db)
     if not user:
         return []
     twelve_hours_ago = datetime.utcnow() - timedelta(hours=12)
-    predictions = (
-        db.query(Prediction)
-        .filter(Prediction.user_id == user.id, Prediction.timestamp >= twelve_hours_ago)
+    result = await db.execute(
+        select(Prediction)
+        .where(Prediction.user_id == user.id, Prediction.timestamp >= twelve_hours_ago)
         .order_by(Prediction.timestamp.desc())
         .limit(5)
-        .all()
     )
+    predictions = result.scalars().all()
     return [{"stress_level": pred.stress_level, "timestamp": pred.timestamp.isoformat()} for pred in predictions]
 
-async def get_dosages(email: str, db: Session) -> List[dict]:
+async def get_dosages(email: str, db: AsyncSession) -> List[dict]:
     user = await get_user_by_email(email, db)
     if not user:
         return []
-    children = db.query(Child).filter(Child.caregiver_id == user.id).all()
+    result = await db.execute(select(Child).where(Child.caregiver_id == user.id))
+    children = result.scalars().all()
     child_ids = [child.id for child in children]
-    dosages = db.query(Dosage).filter(Dosage.child_id.in_(child_ids)).all()
+    if not child_ids:
+        return []
+    result = await db.execute(select(Dosage).where(Dosage.child_id.in_(child_ids)))
+    dosages = result.scalars().all()
     return [
         {
             "child_id": dose.child_id,
@@ -116,7 +123,7 @@ async def get_dosages(email: str, db: Session) -> List[dict]:
 
 # Chat endpoint
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, email: str, db: Session = Depends(get_db)):
+async def chat(request: ChatRequest, email: str, db: AsyncSession = Depends(get_db)):
     user = await get_user_by_email(email, db)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
@@ -186,7 +193,7 @@ async def chat(request: ChatRequest, email: str, db: Session = Depends(get_db)):
     )
 
     try:
-        response = gemini_model.generate_content(prompt)
+        response = await gemini_model.generate_content_async(prompt)
         logger.info(f"Chat response generated for user {email}: {response.text[:100]}...")
         return ChatResponse(
             response=response.text,
@@ -198,7 +205,7 @@ async def chat(request: ChatRequest, email: str, db: Session = Depends(get_db)):
 
 # Insights endpoint
 @router.get("/insights", response_model=InsightsResponse)
-async def get_insights(email: str, db: Session = Depends(get_db)):
+async def get_insights(email: str, db: AsyncSession = Depends(get_db)):
     user = await get_user_by_email(email, db)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
@@ -239,7 +246,7 @@ async def get_insights(email: str, db: Session = Depends(get_db)):
         )
 
         try:
-            response = gemini_model.generate_content(prompt)
+            response = await gemini_model.generate_content_async(prompt)
             insights.append(
                 Insight(
                     text=response.text,
