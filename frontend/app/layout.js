@@ -36,8 +36,8 @@ export default function RootLayout({ children }) {
           user_id: userData.id,
           name: `${userData.first_name} ${userData.last_name}`.trim() || 'Unknown',
           email: userData.email,
-          phone: '', // Default empty as per model
-          relation_type: '' // Default empty as per model
+          phone: '', 
+          relation_type: '' 
         }),
       })
       if (res.ok) {
@@ -57,7 +57,6 @@ export default function RootLayout({ children }) {
         console.log('RootLayout: Stored user from localStorage:', storedUser)
         if (storedUser) {
           const parsedUser = JSON.parse(storedUser)
-          // Verify user session
           const res = await fetch(`${API_URL}/users/me?email=${encodeURIComponent(parsedUser.email)}`)
           if (res.ok) {
             const userData = await res.json()
@@ -69,12 +68,12 @@ export default function RootLayout({ children }) {
             console.error('RootLayout: Failed to verify user, status:', res.status)
             setUser(null)
             localStorage.removeItem('user')
-            localStorage.removeItem('user_email') // Clean up legacy key
+            localStorage.removeItem('user_email')
           }
         } else {
           console.log('RootLayout: No user in storage')
           setUser(null)
-          localStorage.removeItem('user_email') // Clean up legacy key
+          localStorage.removeItem('user_email')
         }
       } catch (err) {
         console.error('RootLayout: Error initializing user:', err)
@@ -199,43 +198,3 @@ export default function RootLayout({ children }) {
     </html>
   )
 }
-
-
-
-
-// import { Geist, Geist_Mono } from "next/font/google";
-// import "./globals.css";
-// import { ThemeProvider } from '@/context/ThemeContext';
-// import { UserProvider } from '@/context/UserContext';
-// import { WebSocketProvider } from '@/context/WebSocketContext';
-
-// const geistSans = Geist({
-//   variable: "--font-geist-sans",
-//   subsets: ["latin"],
-// });
-
-// const geistMono = Geist_Mono({
-//   variable: "--font-geist-mono",
-//   subsets: ["latin"],
-// });
-
-// export const metadata = {
-//   title: "AutiCare",
-//   description: "Empowering children with autism through compassionate monitoring and data-driven insights.",
-// };
-
-// export default function RootLayout({ children }) {
-//   return (
-//     <html lang="en">
-//       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-//         <ThemeProvider>
-//           <UserProvider>
-//             <WebSocketProvider>
-//             {children}
-//             </WebSocketProvider>
-//           </UserProvider>
-//         </ThemeProvider>
-//       </body>
-//     </html>
-//   );
-// }

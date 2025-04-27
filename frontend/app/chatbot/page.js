@@ -27,7 +27,7 @@ export default function ChatBot() {
 
     const fetchInsights = async () => {
       try {
-        const res = await fetch(`${API_URL}/insights?email=${encodeURIComponent(user.email)}`)
+        const res = await fetch(`${API_URL}/api/insights?email=${encodeURIComponent(user.email)}`)
         if (!res.ok) throw new Error(`Failed to fetch insights: ${res.status}`)
         const data = await res.json()
         setInsights(data.insights || [])
@@ -53,7 +53,7 @@ export default function ChatBot() {
     setInput('')
 
     try {
-      const res = await fetch(`${API_URL}/chat?email=${encodeURIComponent(user.email)}`, {
+      const res = await fetch(`${API_URL}/api/chat?email=${encodeURIComponent(user.email)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: input }),
@@ -91,7 +91,7 @@ export default function ChatBot() {
     <div
       className={`min-h-screen flex flex-col ${
         isDark ? 'bg-gradient-to-br from-gray-900 via-teal-950 to-gray-800' : 'bg-gradient-to-br from-teal-50 via-blue-50 to-teal-100'
-      } pb-16`} // Added pb-16 to account for BottomMenu
+      } pb-16`} 
     >
       <motion.header
         initial={{ opacity: 0, y: -20 }}

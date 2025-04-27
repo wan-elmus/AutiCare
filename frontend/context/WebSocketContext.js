@@ -30,8 +30,6 @@ export function WebSocketProvider({ children }) {
 
         ws.onopen = () => {
             console.log('WebSocket connection established');
-            reconnectAttempts.current = 0 
-            reconnectInterval.current = 1000 
         };
 
         ws.onmessage = async (event) => {
