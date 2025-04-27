@@ -114,8 +114,8 @@ async def login(
         value=access_token,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
-        secure=False,
-        # samesite="none",
+        secure=True,
+        samesite="none",
         path="/",
     )
     response.set_cookie(
@@ -123,8 +123,8 @@ async def login(
         value=refresh_token,
         max_age=7 * 24 * 60 * 60, 
         httponly=True,
-        secure=False,
-        # samesite="none",
+        secure=True,
+        samesite="none",
         path="/",
     )
     # print(access_token)
@@ -161,8 +161,8 @@ async def refresh(
         value=access_token,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
-        secure=False,
-        # samesite="lax",
+        secure=True,
+        samesite="none",
         path="/",
     )
     logger.info(f"Refreshed access token for {user.email}")
