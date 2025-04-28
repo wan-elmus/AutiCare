@@ -74,7 +74,6 @@ async def get_dosages(email: str, db: AsyncSession = Depends(get_db)):
         result = await db.execute(select(Dosage).filter(Dosage.child_id.in_(child_ids)))
         dosages = result.scalars().all()
 
-        # Deserialize intervals from JSON string to list
         for dosage in dosages:
             try:
                 dosage.intervals = json.loads(dosage.intervals) if dosage.intervals else ["00:00"]
