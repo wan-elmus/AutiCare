@@ -9,18 +9,20 @@ Limits results to 100 for faster query execution.
 Logs inference time to monitor model performance.
 Tracks prediction values for debugging.
 Logs database commits to confirm data storage.
+Sends SMS reminders for active dosages.
 '''
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import desc
+from sqlalchemy import desc, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from database.db import get_db
 from utils.model_utils import load_model, predict_stress
 from utils.data_processing import compute_features
-from database.models import User, SensorData, Prediction, ProcessedData, Notification
+from database.models import User, SensorData, Prediction, ProcessedData, Notification, Dosage, Child, Caregiver
 from datetime import datetime, timedelta
 from utils.websocket_manager import websocket_manager
+from dosages import send_sms
 import time
 import json
 
@@ -155,6 +157,59 @@ async def process_data_for_user(user_id: int, db: AsyncSession):
         logger.error(f"Error processing user {user_id}: {str(e)}")
         await db.rollback()
 
+async def check_dosage_reminders(db: AsyncSession):
+    """Check active dosages and send SMS reminders"""
+    logger.info("Checking dosage reminders")
+    try:
+        # Fetch active dosages due for reminders
+        result = await db.execute(
+            select(Dosage).filter(
+                and_(
+                    Dosage.status == "active",
+                    Dosage.next_dosage_time <= datetime.utcnow()
+                )
+            )
+        )
+        dosages = result.scalars().all()
+        for dosage in dosages:
+            # Get caregiver and child
+            result = await db.execute(
+                select(Caregiver).filter(
+                    Caregiver.id == (
+                        select(Child.caregiver_id).where(Child.id == dosage.child_id).scalar_subquery()
+                    )
+                )
+            )
+            caregiver = result.scalars().first()
+            result = await db.execute(select(Child).filter(Child.id == dosage.child_id))
+            child = result.scalars().first()
+            
+            if caregiver and caregiver.phone and child:
+                message = (
+                    f"Reminder: Give {dosage.medication} ({dosage.dosage}) to {child.name} now. "
+                    f"Frequency: {dosage.frequency}, Notes: {dosage.notes or 'None'}"
+                )
+                sms_response = await send_sms(
+                    phone=caregiver.phone,
+                    message=message[:160],  # SMS character limit
+                    ref_id=f"dosage-reminder-{dosage.id}"
+                )
+                if sms_response.get("status") != "SUCCESS":
+                    logger.warning(f"Reminder SMS failed for dosage id {dosage.id}: {sms_response.get('desc')}")
+                else:
+                    logger.info(f"Reminder SMS sent for dosage id {dosage.id} to {caregiver.phone}")
+                
+                # Update next_dosage_time (simplified; adjust based on frequency/intervals)
+                intervals = json.loads(dosage.intervals) if dosage.intervals else ["00:00"]
+                next_time = datetime.utcnow()
+                if dosage.frequency == "daily":
+                    next_time += timedelta(days=1)
+                # Add more frequency logic (e.g., "hourly", "weekly") as needed
+                dosage.next_dosage_time = next_time
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Error checking dosage reminders: {str(e)}")
+        await db.rollback()
 
 async def process_all_users():
     """Process all users in batches"""
@@ -166,13 +221,14 @@ async def process_all_users():
         users = result.scalars().all()
         for user in users:
             await process_data_for_user(user.id, db)
+        # Run dosage reminders
+        await check_dosage_reminders(db)
     except Exception as e:
         logger.error(f"Error processing all users: {str(e)}")
     finally:
         if db is not None:
             await db.close()
         await db_gen.aclose()
-
 
 def scheduler_startup():
     scheduler.add_job(
@@ -186,4 +242,3 @@ def scheduler_startup():
     scheduler.start()
     logger.info("Scheduler started")
     return scheduler
-
