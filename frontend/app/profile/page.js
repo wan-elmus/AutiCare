@@ -26,9 +26,18 @@ export default function Profile() {
   const [editingChildId, setEditingChildId] = useState(null)
   const [editingDosageId, setEditingDosageId] = useState(null)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('') // New state for success messages
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://195.7.7.15:8002'
+
+  // Clear success message after 5 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(''), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [successMessage])
 
   useEffect(() => {
     console.log('Profile: UserContext user:', user)
@@ -65,7 +74,6 @@ export default function Profile() {
           phone: '',
           relation_type: ''
         })
-        setError('Caregiver profile not found. Please update your profile.')
         return
       }
       
@@ -141,7 +149,8 @@ export default function Profile() {
         throw new Error('User email is missing. Please log in again.')
       }
 
-      const payload = { ...caregiverForm, email: user.email };
+      const payload = { ...caregiverForm, email: user.email }
+      console.log('Profile: Sending PUT /caregivers/me with payload:', payload)
 
       const res = await fetch(`${API_URL}/caregivers/me?email=${encodeURIComponent(user.email)}`, {
         method: 'PUT',
@@ -163,11 +172,12 @@ export default function Profile() {
       const updatedCaregiver = await res.json()
       setCaregiver(updatedCaregiver)
       setCaregiverForm({
-        name: updatedCaregiver.name || '',
-        email: updatedCaregiver.email,
-        phone: updatedCaregiver.phone || '',
-        relation_type: updatedCaregiver.relation_type || ''
+        name: '',
+        email: user.email,
+        phone: '',
+        relation_type: ''
       })
+      setSuccessMessage('Caregiver profile updated successfully!')
       console.log('Profile: Caregiver updated:', updatedCaregiver)
     } catch (err) {
       setError(err.message)
@@ -195,6 +205,8 @@ export default function Profile() {
         ? `${API_URL}/children/${editingChildId}?email=${encodeURIComponent(user.email)}`
         : `${API_URL}/children?email=${encodeURIComponent(user.email)}`
       
+      console.log('Profile: Sending', method, url, 'with payload:', childForm)
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -212,6 +224,7 @@ export default function Profile() {
         behavioral_notes: '', emergency_contacts: '', medical_history: ''
       })
       setEditingChildId(null)
+      setSuccessMessage(editingChildId ? 'Child profile updated successfully!' : 'Child profile added successfully!')
       console.log('Profile: Child saved:', childForm)
     } catch (err) {
       setError(err.message)
@@ -236,13 +249,16 @@ export default function Profile() {
         ? `${API_URL}/dosages/${editingDosageId}?email=${encodeURIComponent(user.email)}`
         : `${API_URL}/dosages?email=${encodeURIComponent(user.email)}`
       
+      const payload = {
+        ...dosageForm,
+        intervals: dosageForm.intervals.length ? dosageForm.intervals : ['00:00'],
+      }
+      console.log('Profile: Sending', method, url, 'with payload:', payload)
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...dosageForm,
-          intervals: dosageForm.intervals.length ? dosageForm.intervals : ['00:00'],
-        }),
+        body: JSON.stringify(payload),
       })
       
       if (!res.ok) {
@@ -256,7 +272,8 @@ export default function Profile() {
         frequency: 'daily', intervals: [], status: 'active', notes: ''
       })
       setEditingDosageId(null)
-      console.log('Profile: Dosage saved:', dosageForm)
+      setSuccessMessage(editingDosageId ? 'Dosage updated successfully!' : 'Dosage added successfully!')
+      console.log('Profile: Dosage saved:', payload)
     } catch (err) {
       setError(err.message)
       console.error('Dosage submit error:', err)
@@ -282,6 +299,7 @@ export default function Profile() {
       }
       
       setChildren(children.filter(child => child.id !== id))
+      setSuccessMessage('Child profile deleted successfully!')
       console.log('Profile: Child deleted:', id)
     } catch (err) {
       setError(err.message)
@@ -308,6 +326,7 @@ export default function Profile() {
       }
       
       setDosages(dosages.filter(dosage => dosage.id !== id))
+      setSuccessMessage('Dosage deleted successfully!')
       console.log('Profile: Dosage deleted:', id)
     } catch (err) {
       setError(err.message)
@@ -382,13 +401,32 @@ export default function Profile() {
         ))}
       </div>
 
+      {/* Success Message */}
+      {successMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className={`p-3 mb-4 rounded-md ${
+            isDark ? 'bg-green-900 text-green-100' : 'bg-green-100 text-green-800'
+          }`}
+        >
+          {successMessage}
+        </motion.div>
+      )}
+
       {/* Error Message */}
       {error && (
-        <div className={`p-3 mb-4 rounded-md ${
-          isDark ? 'bg-red-900 text-red-100' : 'bg-red-100 text-red-800'
-        }`}>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className={`p-3 mb-4 rounded-md ${
+            isDark ? 'bg-red-900 text-red-100' : 'bg-red-100 text-red-800'
+          }`}
+        >
           {error}
-        </div>
+        </motion.div>
       )}
 
       {/* Caregiver Tab */}
