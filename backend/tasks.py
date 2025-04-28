@@ -22,7 +22,7 @@ from utils.data_processing import compute_features
 from database.models import User, SensorData, Prediction, ProcessedData, Notification, Dosage, Child, Caregiver
 from datetime import datetime, timedelta
 from utils.websocket_manager import websocket_manager
-from dosages import send_sms
+from routes_api.dosages import send_sms
 import time
 import json
 
