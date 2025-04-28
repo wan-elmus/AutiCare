@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
 from database.db import get_db
-from database.models import Caregiver, CaregiverOut, CaregiverCreate, CaregiverUpdate
+from database.models import Caregiver, CaregiverOut, CaregiverCreate, CaregiverUpdate, User
 import logging
 
 router = APIRouter(prefix="/caregivers", tags=["caregivers"])
