@@ -1,5 +1,5 @@
 """
-Manages notification-related operations.
+Manages notification-related operations, including in-app notifications and SMS delivery receipts.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.future import select
@@ -117,3 +117,32 @@ async def dismiss_all_notifications(
         logger.error(f"Error dismissing all notifications: {str(e)}")
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+@router.post("/sms-delivery")
+async def sms_delivery_callback(payload: dict):
+    """
+    Handle SMS delivery receipt from Tiara Connect.
+    Payload includes msgId, status, deliveryTime, etc.
+    """
+    try:
+        msg_id = payload.get("msgId")
+        status = payload.get("status")
+        ref_id = payload.get("refId")
+        delivery_time = payload.get("deliveryTime")
+        status_reason = payload.get("statusReason")
+
+        if not msg_id or not status:
+            logger.error(f"Invalid delivery receipt payload: {payload}")
+            raise HTTPException(status_code=400, detail="Missing msgId or status")
+
+        logger.info(
+            f"SMS delivery receipt: msgId={msg_id}, refId={ref_id}, "
+            f"status={status}, reason={status_reason}, deliveryTime={delivery_time}"
+        )
+
+        # Optionally store in database or process further
+        # For now, just log the receipt
+        return {"status": "received", "msgId": msg_id}
+    except Exception as e:
+        logger.error(f"Error processing SMS delivery receipt: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
