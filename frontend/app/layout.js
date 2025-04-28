@@ -29,108 +29,111 @@ export default function RootLayout({ children }) {
 
   const createCaregiverProfile = async (userData) => {
     try {
+      const payload = {
+        user_id: userData.id,
+        name: `${userData.first_name} ${userData.last_name}`.trim() || 'Unknown',
+        email: userData.email,
+        phone: '',
+        relation_type: ''
+      };
+      console.log('RootLayout: Sending POST /caregivers with payload:', payload);
       const res = await fetch(`${API_URL}/caregivers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userData.id,
-          name: `${userData.first_name} ${userData.last_name}`.trim() || 'Unknown',
-          email: userData.email,
-          phone: '', 
-          relation_type: '' 
-        }),
-      })
+        body: JSON.stringify(payload),
+      });
+      const responseBody = await res.text();
       if (res.ok) {
-        console.log('RootLayout: Caregiver profile created:', userData.email)
-      } else if (res.status !== 409) {
-        console.error('RootLayout: Failed to create caregiver profile, status:', res.status)
+        console.log('RootLayout: Caregiver profile created successfully:', userData.email);
+      } else {
+        console.error('RootLayout: Failed to create caregiver profile, status:', res.status, 'response:', responseBody);
+      }
+      return res.ok;
+    } catch (err) {
+      console.error('RootLayout: Error creating caregiver profile:', err.message);
+      return false;
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      if (!user?.email) {
+        setNotifications([]);
+        setNotificationError(null);
+        return;
+      }
+      const res = await fetch(`${API_URL}/api/notifications?email=${encodeURIComponent(user.email)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
+        setNotificationError(null);
+        console.log('RootLayout: Notifications fetched:', data.notifications);
+      } else if (res.status === 404) {
+        setNotifications([]);
+        setNotificationError(null);
+        console.log('RootLayout: No notifications found (404)');
+      } else {
+        throw new Error(`Failed with status ${res.status}`);
       }
     } catch (err) {
-      console.error('RootLayout: Error creating caregiver profile:', err)
+      setNotificationError('Failed to load notifications');
+      console.error('RootLayout: Notification error:', err);
     }
-  }
+  };
 
   useEffect(() => {
     const initializeUser = async () => {
       try {
-        const storedUser = localStorage.getItem('user')
-        console.log('RootLayout: Stored user from localStorage:', storedUser)
+        const storedUser = localStorage.getItem('user');
+        console.log('RootLayout: Stored user from localStorage:', storedUser);
         if (storedUser) {
-          const parsedUser = JSON.parse(storedUser)
-          const res = await fetch(`${API_URL}/users/me?email=${encodeURIComponent(parsedUser.email)}`)
+          const parsedUser = JSON.parse(storedUser);
+          const res = await fetch(`${API_URL}/users/me?email=${encodeURIComponent(parsedUser.email)}`);
           if (res.ok) {
-            const userData = await res.json()
-            console.log('RootLayout: User fetched successfully:', userData)
-            setUser(userData)
-            localStorage.setItem('user', JSON.stringify(userData))
-            await createCaregiverProfile(userData)
+            const userData = await res.json();
+            console.log('RootLayout: User fetched successfully:', userData);
+            setUser(userData);
+            localStorage.setItem('user', JSON.stringify(userData));
+            const created = await createCaregiverProfile(userData);
+            if (!created) {
+              console.warn('RootLayout: Caregiver profile creation failed, user may need to update profile manually');
+            }
           } else {
-            console.error('RootLayout: Failed to verify user, status:', res.status)
-            setUser(null)
-            localStorage.removeItem('user')
-            localStorage.removeItem('user_email')
+            console.error('RootLayout: Failed to verify user, status:', res.status);
+            setUser(null);
+            localStorage.removeItem('user');
+            localStorage.removeItem('user_email');
           }
         } else {
-          console.log('RootLayout: No user in storage')
-          setUser(null)
-          localStorage.removeItem('user_email')
+          console.log('RootLayout: No user in storage');
+          setUser(null);
+          localStorage.removeItem('user_email');
         }
       } catch (err) {
-        console.error('RootLayout: Error initializing user:', err)
-        setUser(null)
-        localStorage.removeItem('user')
-        localStorage.removeItem('user_email')
+        console.error('RootLayout: Error initializing user:', err);
+        setUser(null);
+        localStorage.removeItem('user');
+        localStorage.removeItem('user_email');
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    initializeUser()
-  }, [API_URL])
+    initializeUser();
+  }, [API_URL]);
 
   useEffect(() => {
     if (user) {
-      console.log('RootLayout: User state changed:', user)
-      localStorage.setItem('user', JSON.stringify(user))
-    }
-
-    const fetchNotifications = async () => {
-      try {
-        if (!user?.email) {
-          setNotifications([])
-          setNotificationError(null)
-          return
-        }
-        const res = await fetch(`${API_URL}/api/notifications?email=${encodeURIComponent(user.email)}`)
-        if (res.ok) {
-          const data = await res.json()
-          setNotifications(data.notifications || [])
-          setNotificationError(null)
-          console.log('RootLayout: Notifications fetched:', data.notifications)
-        } else if (res.status === 404) {
-          setNotifications([])
-          setNotificationError(null)
-          console.log('RootLayout: No notifications found (404)')
-        } else {
-          throw new Error(`Failed with status ${res.status}`)
-        }
-      } catch (err) {
-        setNotificationError('Failed to load notifications')
-        console.error('RootLayout: Notification error:', err)
-      }
-    }
-
-    if (user) {
-      fetchNotifications()
-      const interval = setInterval(fetchNotifications, 60000)
-      return () => clearInterval(interval)
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 60000);
+      return () => clearInterval(interval);
     } else {
-      setNotifications([])
-      setNotificationError(null)
-      setShowNotifications(false)
-      console.log('RootLayout: Cleared notifications due to no user')
+      setNotifications([]);
+      setNotificationError(null);
+      setShowNotifications(false);
+      console.log('RootLayout: Cleared notifications due to no user');
     }
-  }, [user, API_URL])
+  }, [user, API_URL]);
 
   const handleNotificationActions = {
     toggle: () => setShowNotifications((prev) => !prev),
@@ -138,29 +141,29 @@ export default function RootLayout({ children }) {
       try {
         const res = await fetch(`${API_URL}/api/notifications/${id}/dismiss?email=${encodeURIComponent(user.email)}`, {
           method: 'PUT',
-        })
-        if (!res.ok) throw new Error('Dismiss failed')
-        setNotifications((prev) => prev.filter((n) => n.id !== id))
-        console.log('RootLayout: Dismissed notification:', id)
+        });
+        if (!res.ok) throw new Error('Dismiss failed');
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+        console.log('RootLayout: Dismissed notification:', id);
       } catch (err) {
-        console.error('RootLayout: Dismiss error:', err)
+        console.error('RootLayout: Dismiss error:', err);
       }
     },
     dismissAll: async () => {
       try {
         const res = await fetch(`${API_URL}/api/notifications/dismiss-all?email=${encodeURIComponent(user.email)}`, {
           method: 'PUT',
-        })
-        if (!res.ok) throw new Error('Bulk dismiss failed')
-        setNotifications([])
-        console.log('RootLayout: Dismissed all notifications')
+        });
+        if (!res.ok) throw new Error('Bulk dismiss failed');
+        setNotifications([]);
+        console.log('RootLayout: Dismissed all notifications');
       } catch (err) {
-        console.error('RootLayout: Bulk dismiss error:', err)
+        console.error('RootLayout: Bulk dismiss error:', err);
       }
     },
-  }
+  };
 
-  console.log('RootLayout: Rendering, user:', user, 'BottomMenu?', !!user)
+  console.log('RootLayout: Rendering, user:', user, 'BottomMenu?', !!user);
 
   if (isLoading) {
     return (
@@ -171,7 +174,7 @@ export default function RootLayout({ children }) {
           </div>
         </body>
       </html>
-    )
+    );
   }
 
   return (
@@ -196,5 +199,5 @@ export default function RootLayout({ children }) {
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }

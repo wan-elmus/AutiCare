@@ -51,8 +51,25 @@ async def update_caregiver(
         result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
         caregiver = result.scalars().first()
         if not caregiver:
-            logger.warning(f"Caregiver not found for email: {email}")
-            raise HTTPException(status_code=404, detail="Caregiver not found")
+            logger.info(f"Caregiver not found for email: {email}, creating new caregiver")
+            # Fetch user to get user_id
+            user_result = await db.execute(select(User).filter(User.email == email))
+            user = user_result.scalars().first()
+            if not user:
+                logger.warning(f"User not found for email: {email}")
+                raise HTTPException(status_code=404, detail="User not found")
+            # Create new caregiver
+            caregiver_data = caregiver_update.dict(exclude_unset=True)
+            caregiver_data.update({
+                "user_id": user.id,
+                "email": email
+            })
+            db_caregiver = Caregiver(**caregiver_data)
+            db.add(db_caregiver)
+            await db.commit()
+            await db.refresh(db_caregiver)
+            logger.info(f"Caregiver created for email: {email}")
+            return db_caregiver
 
         if caregiver_update.email != email:
             logger.warning(f"Email mismatch: {caregiver_update.email} != {email}")
@@ -66,4 +83,5 @@ async def update_caregiver(
         return caregiver
     except Exception as e:
         logger.error(f"Error updating caregiver for email {email}: {str(e)}")
+        await db.rollback()
         raise
