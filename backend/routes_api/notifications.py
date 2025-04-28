@@ -140,8 +140,6 @@ async def sms_delivery_callback(payload: dict):
             f"status={status}, reason={status_reason}, deliveryTime={delivery_time}"
         )
 
-        # Optionally store in database or process further
-        # For now, just log the receipt
         return {"status": "received", "msgId": msg_id}
     except Exception as e:
         logger.error(f"Error processing SMS delivery receipt: {str(e)}")
