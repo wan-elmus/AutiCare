@@ -9,6 +9,7 @@ from database.db import get_db
 from database.models import Dosage, Child, Caregiver, DosageOut, DosageCreate, DosageUpdate
 from typing import List
 import logging
+import json
 
 router = APIRouter(prefix="/dosages", tags=["dosages"])
 
@@ -18,20 +19,33 @@ logger = logging.getLogger("dosages")
 @router.get("/", response_model=List[DosageOut])
 async def get_dosages(email: str, db: AsyncSession = Depends(get_db)):
     logger.info(f"Fetching dosages for email: {email}")
-    result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
-    caregiver = result.scalars().first()
-    if not caregiver:
-        logger.warning(f"Caregiver not found for email: {email}")
-        raise HTTPException(status_code=404, detail="Caregiver not found")
+    try:
+        result = await db.execute(select(Caregiver).filter(Caregiver.email == email))
+        caregiver = result.scalars().first()
+        if not caregiver:
+            logger.warning(f"Caregiver not found for email: {email}")
+            raise HTTPException(status_code=404, detail="Caregiver not found")
 
-    result = await db.execute(select(Child).filter(Child.caregiver_id == caregiver.id))
-    children = result.scalars().all()
-    child_ids = [child.id for child in children]
+        result = await db.execute(select(Child).filter(Child.caregiver_id == caregiver.id))
+        children = result.scalars().all()
+        child_ids = [child.id for child in children]
 
-    result = await db.execute(select(Dosage).filter(Dosage.child_id.in_(child_ids)))
-    dosages = result.scalars().all()
-    logger.info(f"Fetched {len(dosages)} dosages for email: {email}")
-    return dosages
+        result = await db.execute(select(Dosage).filter(Dosage.child_id.in_(child_ids)))
+        dosages = result.scalars().all()
+
+        # Deserialize intervals from JSON string to list
+        for dosage in dosages:
+            try:
+                dosage.intervals = json.loads(dosage.intervals) if dosage.intervals else ["00:00"]
+            except json.JSONDecodeError as e:
+                logger.warning(f"Invalid JSON in intervals for dosage id {dosage.id}: {dosage.intervals}")
+                dosage.intervals = ["00:00"]  # Fallback to default
+
+        logger.info(f"Fetched {len(dosages)} dosages for email: {email}")
+        return dosages
+    except Exception as e:
+        logger.error(f"Error fetching dosages for email {email}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/", response_model=DosageOut, status_code=201)
 async def create_dosage(
@@ -55,11 +69,23 @@ async def create_dosage(
             logger.warning(f"Child not found for id: {dosage.child_id} under caregiver: {email}")
             raise HTTPException(status_code=404, detail="Child not found or does not belong to this caregiver")
 
+        # Serialize intervals to JSON string
+        dosage_data = dosage.dict()
+        dosage_data['intervals'] = json.dumps(dosage_data['intervals'] or ["00:00"])
+
         # Create dosage
-        db_dosage = Dosage(**dosage.dict())
+        db_dosage = Dosage(**dosage_data)
         db.add(db_dosage)
         await db.commit()
         await db.refresh(db_dosage)
+
+        # Deserialize intervals for response
+        try:
+            db_dosage.intervals = json.loads(db_dosage.intervals) if db_dosage.intervals else ["00:00"]
+        except json.JSONDecodeError as e:
+            logger.warning(f"Invalid JSON in intervals for new dosage id {db_dosage.id}: {db_dosage.intervals}")
+            db_dosage.intervals = ["00:00"]
+
         logger.info(f"Dosage created for child_id: {dosage.child_id}, email: {email}")
         return db_dosage
     except IntegrityError as e:
@@ -95,10 +121,23 @@ async def update_dosage(
             logger.warning(f"Dosage not found for id: {id} under child_ids: {child_ids}")
             raise HTTPException(status_code=404, detail="Dosage not found")
 
-        for key, value in dosage_update.dict(exclude_unset=True).items():
+        # Serialize intervals to JSON string
+        update_data = dosage_update.dict(exclude_unset=True)
+        if 'intervals' in update_data:
+            update_data['intervals'] = json.dumps(update_data['intervals'] or ["00:00"])
+
+        for key, value in update_data.items():
             setattr(dosage, key, value)
         await db.commit()
         await db.refresh(dosage)
+
+        # Deserialize intervals for response
+        try:
+            dosage.intervals = json.loads(dosage.intervals) if dosage.intervals else ["00:00"]
+        except json.JSONDecodeError as e:
+            logger.warning(f"Invalid JSON in intervals for dosage id {dosage.id}: {dosage.intervals}")
+            dosage.intervals = ["00:00"]
+
         logger.info(f"Dosage updated: id {id}, email: {email}")
         return dosage
     except Exception as e:
