@@ -21,9 +21,10 @@ router = APIRouter(prefix="/dosages", tags=["dosages"])
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("dosages")
 
+# Tiara Connect configuration
 TIARA_API_KEY = os.getenv("TIARA_API_KEY")
 TIARA_SENDER_ID = os.getenv("TIARA_SENDER_ID", "AUTICARE")
-TIARA_SMS_ENDPOINT = os.getenv("TIARA_SMS_ENDPOINT", "https://api.tiaraconnect.io/api/messaging/sendsms")
+TIARA_SMS_ENDPOINT = os.getenv("TIARA_SMS_ENDPOINT", "https://api2.tiaraconnect.io/api/messaging/sendsms")
 
 async def send_sms(phone: str, message: str, ref_id: str):
     """Send SMS via Tiara Connect SMS API."""
@@ -74,6 +75,7 @@ async def get_dosages(email: str, db: AsyncSession = Depends(get_db)):
         result = await db.execute(select(Dosage).filter(Dosage.child_id.in_(child_ids)))
         dosages = result.scalars().all()
 
+        # Deserialize intervals from JSON string to list
         for dosage in dosages:
             try:
                 dosage.intervals = json.loads(dosage.intervals) if dosage.intervals else ["00:00"]
