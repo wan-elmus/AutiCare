@@ -16,7 +16,7 @@ export default function ConcentricGauge({ heartRate, gsr, temperature, isDark })
     },
     {
       value: gsr,
-      max: 10,
+      max: 500,
       radius: 48,
       color: getGSRColor(gsr),
       unit: 'μS',

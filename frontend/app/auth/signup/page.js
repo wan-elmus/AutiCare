@@ -26,6 +26,7 @@ export default function SignupPage() {
     e.preventDefault()
     setIsLoading(true)
     setError('')
+
     try {
       const response = await fetch('http://195.7.7.15:8002/users/me', {
         method: 'POST',
@@ -36,13 +37,19 @@ export default function SignupPage() {
           email: formData.email,
           password: formData.password,
         }),
-        credentials: 'include',
       })
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.detail || 'Registration failed')
       }
-      router.push('/auth/login')
+
+      const data = await response.json()
+      if (data.message === 'User created successfully') {
+        router.push('/auth/login')
+      } else {
+        throw new Error('Unexpected response from server')
+      }
     } catch (err) {
       setError(err.message)
     } finally {
