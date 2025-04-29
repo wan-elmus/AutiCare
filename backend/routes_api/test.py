@@ -61,4 +61,4 @@ async def send_sms(phone: str, message: str, ref_id: str):
 @router.get("/")
 async def test_sms():
     logger.info(f"Sending SMS")
-    send_sms("+254724345791","Woza baby", 'xyz')
+    await send_sms("+254724345791","Woza baby", 'xyz')
