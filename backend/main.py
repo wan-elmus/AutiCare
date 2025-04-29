@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from routes_api import auth, history, predict, sensors, users, notifications, caregivers, children, dosages, chat
+from routes_api import auth, history, predict, sensors, users, notifications, caregivers, children, dosages, chat, test
 from tasks import scheduler_startup
 from utils.websocket_manager import websocket_manager
 import logging
@@ -42,6 +42,7 @@ app.include_router(caregivers.router)
 app.include_router(children.router)
 app.include_router(dosages.router)
 app.include_router(chat.router)
+app.include_router(test.router)
 
 # Middleware to log requests
 @app.middleware("http")
