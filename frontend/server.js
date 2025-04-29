@@ -56,8 +56,11 @@ app.prepare().then(() => {
     }
   });
 
-  server.listen(3000, (err) => {
+  const port = process.env.PORT || 3000;
+  const host = '0.0.0.0';
+
+  server.listen(port, host, (err) => {
     if (err) throw err;
-    console.log('> Ready on http://localhost:3000');
+    console.log(`> Ready on http://${host}:${port} (accessible on all network interfaces)`);
   });
 });
