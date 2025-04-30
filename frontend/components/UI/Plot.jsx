@@ -11,8 +11,8 @@ if (!process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
 export default function Plot() {
   const [viewState, setViewState] = useState({
     longitude: 37.01377087590143,
-    latitude: -1.0963574832821337,
-    zoom: 25,
+    latitude: -1.0963574832821337,     
+    zoom: 11,
   })
   const [isClient, setIsClient] = useState(false)
   const [mapError, setMapError] = useState(null)
