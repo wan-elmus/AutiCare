@@ -5,7 +5,7 @@ const nextConfig = {
       optimizeFonts: false,
     },
     serverActions: {
-      allowedOrigins: ['localhost:3000'],
+      allowedOrigins: ['*'],
     },
   },
 
