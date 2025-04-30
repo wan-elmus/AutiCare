@@ -49,17 +49,17 @@ const nextConfig = {
       // Proxy API routes (e.g., /api/notifications/)
       {
         source: '/api/:path*',
-        destination: 'http://195.7.7.15:8002/api/:path*',
+        destination: 'https://auticare.solo.co.ke/api/:path*',
       },
       // Proxy sensor routes (e.g., /sensor/data)
       {
         source: '/sensor/:path*',
-        destination: 'http://195.7.7.15:8002/sensor/:path*',
+        destination: 'https://auticare.solo.co.ke/sensor/:path*',
       },
       // Proxy user and auth routes (e.g., /users/me, /auth/login)
       {
         source: '/:path(users|auth|caregivers|children|dosages)/:subpath*',
-        destination: 'http://195.7.7.15:8002/:path/:subpath*',
+        destination: 'https://auticare.solo.co.ke/:path/:subpath*',
       },
     ];
   },
