@@ -13,6 +13,7 @@ import json
 import httpx
 import os
 from dotenv import load_dotenv
+import time
 
 load_dotenv()
 
@@ -61,4 +62,8 @@ async def send_sms(phone: str, message: str, ref_id: str):
 @router.get("/")
 async def test_sms():
     logger.info(f"Sending SMS")
-    await send_sms("+254724345791","The kid is past the ", 'xyz')
+    await send_sms("+254724345791"," Temperature is high ,please respond", 'xyz')
+    time.sleep(60)
+    await send_sms("+254724345791","check the child's location",'xyz')
+    time.sleep(60)
+    await send_sms("+254724345791","Administer Cetrizine",'xyz')
