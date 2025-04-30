@@ -1,6 +1,7 @@
 # utils/model_utils.py
 import pickle
 import os
+import joblib
 from fastapi import HTTPException, status
 
 MODEL_PATH = os.getenv("MODEL_PATH", "models/auticare_model.pkl")
@@ -17,7 +18,7 @@ def load_model():
     """
     try:
         with open(MODEL_PATH, "rb") as f:
-            return pickle.load(f)
+            return joblib.load(f)
     except FileNotFoundError:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Model file not found")
     except Exception as e:
