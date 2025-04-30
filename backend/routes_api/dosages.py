@@ -208,7 +208,7 @@ async def update_dosage(
             )
             sms_response = await send_sms(
                 phone=caregiver.phone,
-                message=message[:160],  # SMS limit
+                message=message[:160],
                 ref_id=f"dosage-{dosage.id}"
             )
             if sms_response.get("status") != "SUCCESS":

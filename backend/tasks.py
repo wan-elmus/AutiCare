@@ -191,7 +191,7 @@ async def check_dosage_reminders(db: AsyncSession):
                 )
                 sms_response = await send_sms(
                     phone=caregiver.phone,
-                    message=message[:160],  # SMS character limit
+                    message=message[:160], 
                     ref_id=f"dosage-reminder-{dosage.id}"
                 )
                 if sms_response.get("status") != "SUCCESS":
@@ -199,12 +199,10 @@ async def check_dosage_reminders(db: AsyncSession):
                 else:
                     logger.info(f"Reminder SMS sent for dosage id {dosage.id} to {caregiver.phone}")
                 
-                # Update next_dosage_time (simplified; adjust based on frequency/intervals)
                 intervals = json.loads(dosage.intervals) if dosage.intervals else ["00:00"]
                 next_time = datetime.utcnow()
                 if dosage.frequency == "daily":
                     next_time += timedelta(days=1)
-                # Add more frequency logic (e.g., "hourly", "weekly") as needed
                 dosage.next_dosage_time = next_time
         await db.commit()
     except Exception as e:
@@ -221,7 +219,6 @@ async def process_all_users():
         users = result.scalars().all()
         for user in users:
             await process_data_for_user(user.id, db)
-        # Run dosage reminders
         await check_dosage_reminders(db)
     except Exception as e:
         logger.error(f"Error processing all users: {str(e)}")

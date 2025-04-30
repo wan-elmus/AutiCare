@@ -65,7 +65,7 @@ async def get_recent_sensor_data(email: str, db: AsyncSession) -> List[dict]:
     user = await get_user_by_email(email, db)
     if not user:
         return []
-    twelve_hours_ago = datetime.utcnow() - timedelta(hours=12)
+    twelve_hours_ago = datetime.utcnow() - timedelta(hours=0.17)
     result = await db.execute(
         select(SensorData)
         .where(SensorData.user_id == user.id, SensorData.timestamp >= twelve_hours_ago)
