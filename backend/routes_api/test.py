@@ -67,3 +67,5 @@ async def test_sms():
     await send_sms("+254724345791","check the child's location",'xyz')
     time.sleep(60)
     await send_sms("+254724345791","Administer Cetrizine",'xyz')
+    time.sleep(60)
+    await send_sms("+254742298864", "Dosage for Acute anxiety, administer Lorazepam, 0.5mg every 6 hours. Use only durimg severe anxiety episode; max 2 doses per day", "xyz")
