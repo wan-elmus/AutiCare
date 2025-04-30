@@ -170,7 +170,13 @@ export default function RootLayout({ children }) {
       <html lang="en" suppressHydrationWarning>
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-100 dark:bg-gray-900`}>
           <div className="min-h-screen flex items-center justify-center">
-            <p className="text-teal-600 dark:text-teal-400">Loading...</p>
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="absolute top-0 left-0 w-16 h-16 border-4 border-teal-400 border-t-transparent rounded-full animate-spin animate-reverse"></div>
+              </div>
+              <p className="text-teal-600 dark:text-teal-400 text-lg font-medium">Loading...</p>
+            </div>
           </div>
         </body>
       </html>
