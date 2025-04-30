@@ -12,7 +12,7 @@ export default function Plot() {
   const [viewState, setViewState] = useState({
     longitude: 37.01377087590143,
     latitude: -1.0963574832821337,
-    zoom: 13,
+    zoom: 25,
   })
   const [isClient, setIsClient] = useState(false)
   const [mapError, setMapError] = useState(null)
