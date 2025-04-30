@@ -25,7 +25,7 @@ export function WebSocketProvider({ children }) {
         }
 
         console.log('Establishing WebSocket connection for user:', user.id);
-        const ws = new WebSocket(`ws://localhost:3000/ws/sensor/data?user_id=${user.id}`);
+        const ws = new WebSocket(`ws://195.7.7.15:3055/ws/sensor/data?user_id=${user.id}`);
         wsRef.current = ws;
 
         ws.onopen = () => {
