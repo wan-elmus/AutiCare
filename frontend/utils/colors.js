@@ -1,6 +1,6 @@
 export function getHeartRateColor(heartRate) {
-  if (heartRate < 110) return '#4CAF50' // Green for low
-  if (heartRate < 130) return '#FFC107' // Amber for moderate
+  if (heartRate < 125) return '#4CAF50' // Green for low
+  if (heartRate < 140) return '#FFC107' // Amber for moderate
   return '#F44336' // Red for high
 }
 
@@ -12,7 +12,7 @@ export function getTemperatureColor(temperature) {
 
 export function getGSRColor(gsr) {
   if (gsr < 5) return '#4CAF50' // Green for low
-  if (gsr < 300) return '#FFC107' // Amber for moderate
+  if (gsr < 500) return '#FFC107' // Amber for moderate
   return '#F44336' // Red for high
 }
 
